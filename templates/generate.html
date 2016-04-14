@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<head>	
+	<style>
+		div.frame {
+			background-color: #d0e4fe;
+			border: 2px solid red ;
+			width: 640px;
+			height: 640px;
+			position: absolute;
+		}
+		div.tile {
+			position: absolute;
+		}
+		img.s128 {
+			width:  64px;
+			height: 64px;
+		}
+
+		.tileWrapper {
+  			width:64px;
+  			height:64px;
+  			position:absolute;
+  			float:left;
+  		}
+
+  		.tileFace {
+  			position:absolute;
+  			width:64px;
+  			height:64px;
+  			overflow:hidden;
+  		}
+
+  	img.tile128 {
+			width: 64px;
+			height: 64px;
+		}
+
+		.back .front {
+			backface-visibility:hidden;
+		}
+	}	
+
+}
+
+</style>
+</head>
+
+<body>
+
+	<h2>hello cruel world</h2>
+	
+	<div class="frame" id="outer">
+		
+		{% for tile in tileList %}
+		
+		<div class="tileWrapper" style="top:{{tile.y}}px;left:{{tile.x}}px;">
+			<div class = "card s128">
+				<div class="tileFace front">
+					<img class="tile128" src="{{tile.frontImg}}">
+				</div>
+				<div class="tileFace back">
+					<img class="tile128" src="{{tile.backImg}}">
+				</div>
+			</div>
+		</div>
+		{% endfor %}
+
+
+	</div>
+
+
+	<script>
+
+		TweenMax.set(".tileWrapper", {perspective:800});
+		TweenMax.set(".card", {transformStyle:"preserve-3d"});
+		TweenMax.set(".back", {rotationY:-180});
+		TweenMax.set([".back", ".front"], {backfaceVisibility:"hidden"});
+
+		$(".tileWrapper").click(function(event) {
+			//fixme - needs state + absolute, else gets stuck on rapid clicks
+			event.stopPropagation();
+			TweenMax.to($(this).find(".card"), 1, {rotationY:180});	
+		})
+
+		var topZ = 10;
+		TweenMax.set(".frame", {perspective:800});
+		//can also use hover or mouseover / mouseout
+		$(".s128").mouseenter(function() {
+			//TweenMax.to($(this), 1, {rotationY:180});
+			$(this).parent().css("zIndex", topZ+1);
+			TweenMax.to($(this), 1, {scale:2});
+		});
+		$(".s128").mouseleave(function() {
+			$(this).parent().css("zIndex", topZ-1);
+			TweenMax.to($(this), 1, {scale:1, onComplete:resetZindex,onCompleteParams:[$(this)]});
+			//TweenMax.to($(this), 1, {rotationY:0});
+		});
+		function resetZindex(item) {
+			item.parent().css("zIndex", 0)
+		}
+
+		$(".s128").click(function(event) {
+			//fixme - needs state + absolute, else gets stuck on rapid clicks
+			event.stopPropagation();
+			TweenMax.to($(this), 1, {rotationY:"+=180"});	
+		})
+
+		$("#outer").click(function() {
+			//fixme - needs state + absolute, else gets stuck on rapid clicks
+			TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
+		})
+	
+	</script>
+	
+</body>
+</html>
+
+{% endblock %}

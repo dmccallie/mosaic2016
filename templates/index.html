@@ -1,15 +1,7 @@
-<!doctype html>
+{% extends "layout.html" %}
+{% block content %}
 
-<html lang="en">
-<head>
-	<meta charset="utf-8">
-
-	<title>Mosaic 2016</title>
-	<meta name="description" content="Mosaic 2016">
-	<meta name="dmccallie" content="">
-
-	<link rel="stylesheet" href="css/styles.css?v=1.0">
-	
+<head>	
 	<style>
 		div.frame {
 			background-color: #d0e4fe;
@@ -197,8 +189,6 @@
 	</div>
 
 
-	<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
-	<script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.2/TweenMax.min.js"></script>
 	<script>
 
 		TweenMax.set(".tileWrapper", {perspective:800});
@@ -237,12 +227,12 @@
 
 		$("#outer").click(function() {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
-			TweenMax.staggerTo($(".s128"), 1, {rotationY:-180, repeat:1, yoyo:true}, 0.1);	
+			TweenMax.staggerTo($(".s128"), 1, {rotationY:-180, yoyo:false}, 0.2);	
 		})
 	
-
-
 	</script>
 	
 </body>
 </html>
+
+{% endblock %}
