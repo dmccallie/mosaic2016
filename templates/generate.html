@@ -14,27 +14,27 @@
 			position: absolute;
 		}
 		img.s128 {
-			width:  64px;
-			height: 64px;
+			width:  {{tileEdge}}px;
+			height: {{tileEdge}}px;
 		}
 
 		.tileWrapper {
-  			width:64px;
-  			height:64px;
+  			width:{{tileEdge}}px;
+  			height:{{tileEdge}}px;
   			position:absolute;
   			float:left;
   		}
 
   		.tileFace {
   			position:absolute;
-  			width:64px;
-  			height:64px;
+  			width:{{tileEdge}}px;
+  			height:{{tileEdge}}px;
   			overflow:hidden;
   		}
 
   	img.tile128 {
-			width: 64px;
-			height: 64px;
+			width: {{tileEdge}}px;
+			height: {{tileEdge}}px;
 		}
 
 		.back .front {
@@ -49,14 +49,14 @@
 
 <body>
 
-	<h2>hello cruel world</h2>
+	<h2>Hello David</h2>
 	
 	<div class="frame" id="outer">
 		
 		{% for tile in tileList %}
 		
 		<div class="tileWrapper" style="top:{{tile.y}}px;left:{{tile.x}}px;">
-			<div class = "card s128">
+			<div class = "card s128" id="row_{{tile.row}}_col_{{tile.col}}">
 				<div class="tileFace front">
 					<img class="tile128" src="{{tile.frontImg}}">
 				</div>
@@ -109,8 +109,36 @@
 
 		$("#outer").click(function() {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
-			TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
+			//TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
+			var tline = new TimelineLite({paused:true});
+			var offset = 0.1
+
+			bline(tline, offset, 0,0,17,17);
+			bline(tline, offset, 17,17,0,9);
+			bline(tline, offset, 0,11,12,17);
+			tline.play();
 		})
+
+		function bline(tline, offset, x0, y0, x1, y1) {
+			//from rosettacode.org - Bresenham's line drawing
+  			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  			var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; 
+  			var err = (dx>dy ? dx : -dy)/2;
+ 
+  			var start = 0;
+  			while (true) {
+    			//setPixel(x0,y0);
+    			var id = "#row_" + x0.toString() + "_" + "col_" + y0.toString();
+    			var tile = $(id);
+    			//console.log(tile);
+    			tline.to(tile,1, {rotationY:"+=180"},start);
+    			start = start + offset;
+    			if (x0 === x1 && y0 === y1) break;
+    			var e2 = err;
+    			if (e2 > -dx) { err -= dy; x0 += sx; }
+    			if (e2 < dy) { err += dx; y0 += sy; }
+  			}
+		}
 	
 	</script>
 	

@@ -9,20 +9,21 @@ def mosaic2016():
 
 @app.route('/generate')
 def generate():
-	tiles = generateTiles()
-	return render_template('generate.html', tileList = tiles)
+	tiles, edge = generateTiles()
+	return render_template('generate.html', tileEdge=edge, tileList = tiles)
 
 def generateTiles():
 	#test generation via templates
 	# shoot for 9x9 at 64x64 tiles
 
 	tileList = []
-	img1 = "https://davidmccallie.s3.amazonaws.com/CRW_4779-sized.jpg"
+	#img1 = "https://davidmccallie.s3.amazonaws.com/CRW_4779-sized.jpg"
+	img1 = "/static/IMG_2516.jpg"
 	img2 = "/static/CRW_6843.jpg"
-	tileEdge = 64
+	tileEdge = 32
 
-	for row in range(0,9):
-		for col in range(0,9):
+	for row in range(0,18):
+		for col in range(0,18):
 			aTile = {}
 			aTile['row'] = row
 			aTile['col'] = col
@@ -31,7 +32,37 @@ def generateTiles():
 			aTile['frontImg'] = img1
 			aTile['backImg'] = img2
 			tileList.append(aTile)
-	return tileList
+	return tileList, tileEdge
+
+def line(x0, y0, x1, y1):
+	"Bresenham's line algorithm (from rosettacode.org)"
+	#x0,y0 = starting coord, x1, y1 = end -- make sure they fit!
+	#returns list of points (tile coords)
+	points = []
+	dx = abs(x1 - x0)
+	dy = abs(y1 - y0)
+	x, y = x0, y0
+	sx = -1 if x0 > x1 else 1
+	sy = -1 if y0 > y1 else 1
+	if dx > dy:
+		err = dx / 2.0
+		while x != x1:
+			points.append((x,y))
+			err -= dy
+			if err < 0:
+				y += sy
+				err += dx
+			x += sx
+	else:
+		err = dy / 2.0
+		while y != y1:
+			points.append((x,y))
+			err -= dx
+			if err < 0:
+				x += sx
+				err += dy
+			y += sy        
+	points.append((x,y))
 
 if __name__ == '__main__':
 	app.debug = True
