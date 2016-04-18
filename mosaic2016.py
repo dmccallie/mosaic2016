@@ -9,8 +9,8 @@ def mosaic2016():
 
 @app.route('/generate')
 def generate():
-	tiles, edge = generateTiles()
-	return render_template('generate.html', tileEdge=edge, tileList = tiles)
+	tiles, tileEdge, numRows, numCols = generateTiles()
+	return render_template('generate.html', tileEdge=tileEdge, tileList = tiles, numRows=numRows, numCols=numCols)
 
 def generateTiles():
 	#test generation via templates
@@ -21,9 +21,11 @@ def generateTiles():
 	img1 = "/static/IMG_2516.jpg"
 	img2 = "/static/CRW_6843.jpg"
 	tileEdge = 32
+	numRows = 32
+	numCols = 32
 
-	for row in range(0,18):
-		for col in range(0,18):
+	for row in range(0,numRows):
+		for col in range(0,numCols):
 			aTile = {}
 			aTile['row'] = row
 			aTile['col'] = col
@@ -32,7 +34,7 @@ def generateTiles():
 			aTile['frontImg'] = img1
 			aTile['backImg'] = img2
 			tileList.append(aTile)
-	return tileList, tileEdge
+	return tileList, tileEdge, numRows, numCols
 
 def line(x0, y0, x1, y1):
 	"Bresenham's line algorithm (from rosettacode.org)"

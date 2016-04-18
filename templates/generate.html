@@ -8,7 +8,7 @@
 			border: 2px solid red ;
 			width: 640px;
 			height: 640px;
-			position: absolute;
+			position: relative;
 		}
 		div.tile {
 			position: absolute;
@@ -50,6 +50,10 @@
 <body>
 
 	<h2>Hello David</h2>
+	<button type="button" id="b1">One</button>
+	<button type="button" id="b2">Two</button>
+	<button type="button" id="b3">Three</button>
+	<p>
 	
 	<div class="frame" id="outer">
 		
@@ -66,14 +70,15 @@
 			</div>
 		</div>
 		{% endfor %}
-
-
 	</div>
+
+
+
 
 
 	<script>
 
-		TweenMax.set(".tileWrapper", {perspective:800});
+		TweenMax.set(".tileWrapper", {perspective:50});
 		TweenMax.set(".card", {transformStyle:"preserve-3d"});
 		TweenMax.set(".back", {rotationY:-180});
 		TweenMax.set([".back", ".front"], {backfaceVisibility:"hidden"});
@@ -89,6 +94,7 @@
 		//can also use hover or mouseover / mouseout
 		$(".s128").mouseenter(function() {
 			//TweenMax.to($(this), 1, {rotationY:180});
+			//console.log(this._gsTransform.rotationY);
 			$(this).parent().css("zIndex", topZ+1);
 			TweenMax.to($(this), 1, {scale:2});
 		});
@@ -104,21 +110,81 @@
 		$(".s128").click(function(event) {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
 			event.stopPropagation();
-			TweenMax.to($(this), 1, {rotationY:"+=180"});	
+			flipOneCard(this, 1.0)
+			//console.log(this._gsTransform.rotationY);
+			//TweenMax.to(this, 1, {rotationY:"+=180"});
+			console.log(this._gsTransform.rotationY);	
 		})
 
-		$("#outer").click(function() {
+		function flipOneCard(ele, duration) {
+			//try to keep the card on 0/180 rotation
+			//overwrite - stops existing action and forces the new one
+			//TweenMax.to(ele, duration, {rotationY:"+=180", overwrite:"all"});
+			
+			TweenMax.killTweensOf(ele); //stop current status
+			var curRotation = ele._gsTransform.rotationY;
+			if (curRotation <= 0) {
+				TweenMax.to(ele, duration, {rotationY:180, overwrite:"all"});
+			} else {
+				TweenMax.to(ele, duration, {rotationY:0, overwrite:"all"});
+			}
+					
+		}
+
+
+		$("#b1").click(function() {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
 			//TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
 			var tline = new TimelineLite({paused:true});
-			var offset = 0.1
 
-			bline(tline, offset, 0,0,17,17);
-			bline(tline, offset, 17,17,0,9);
-			bline(tline, offset, 0,11,12,17);
+			var tiles = [];
+			blineList(tiles, 0,0,17,17);
+			blineList(tiles, 17,17,0,9);
+			blineList(tiles, 0,11,12,17);			
+			//console.log(lines);
+			tline.staggerTo(tiles, 1.0, {rotationY:"+=180", overwrite:"all"}, 0.04);
 			tline.play();
 		})
 
+		$("#b2").click(function() {
+			//fixme - needs state + absolute, else gets stuck on rapid clicks
+			//TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
+			var tline = new TimelineLite({paused:true});
+			var tiles = [];
+
+			randomlyFlipTiles(tline);
+			tline.play();
+		})
+
+		function randomlyFlipTiles(tline) {
+			tiles = generateShuffledListofAllTiles({{numRows}}, {{numCols}});
+			//fixme - should this be a simple toggle -- all 0 or all 180?
+			var numSplits = 1;
+			tileSets = splitTiles(tiles, numSplits);
+			for (var i=0; i<numSplits; i++) {
+				//fixme - not sure this is working as intended?
+				//TweenMax.staggerTo(tileSets[i],0.8, {rotationY:"+=180", overwrite:"all"}, 0.01);
+				for (var t=0; t<tileSets[i].length; t++) {
+					TweenMax.to(tileSets[i][t],2, {rotationY:"+=180", overwrite:"all", delay:(t*0.01)});
+				}
+			}
+		}
+
+		function splitTiles(tileArray, numSplits) {
+			//split this list into two sublists
+			var tileSets = []; //will return an array of arrays
+			for (var i=0; i<numSplits; i++) { tileSets[i] = []; }
+
+			var toggle = 0;
+			for (var i=0; i<tileArray.length; i++) {
+				(tileSets[toggle]).push(tileArray[i]);
+				toogle = toggle + 1;
+				if (toggle >= numSplits) { toggle = 0; }
+			}
+			return tileSets
+		}
+
+		/*
 		function bline(tline, offset, x0, y0, x1, y1) {
 			//from rosettacode.org - Bresenham's line drawing
   			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
@@ -131,6 +197,7 @@
     			var id = "#row_" + x0.toString() + "_" + "col_" + y0.toString();
     			var tile = $(id);
     			//console.log(tile);
+    			//tline.staggerTo(tile,1,{rotationY:"+=180", offset});
     			tline.to(tile,1, {rotationY:"+=180"},start);
     			start = start + offset;
     			if (x0 === x1 && y0 === y1) break;
@@ -139,6 +206,56 @@
     			if (e2 < dy) { err += dx; y0 += sy; }
   			}
 		}
+		*/
+
+		function generateTileIdFromRowCol(row, col) {
+			return "#row_" + row.toString() + "_" + "col_" + col.toString();
+		}
+
+		function blineList(list, x0, y0, x1, y1) {
+			//from rosettacode.org - Bresenham's line drawing
+			//returns a list of jQuery tile objects
+  			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  			var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; 
+  			var err = (dx>dy ? dx : -dy)/2;
+ 
+  			var start = 0;
+  			while (true) {
+    			//setPixel(x0,y0);
+    			//var id = "#row_" + x0.toString() + "_" + "col_" + y0.toString();
+    			var id = generateTileIdFromRowCol(x0, y0);
+    			var tile = $(id);
+    			list.push(tile);
+    			if (x0 === x1 && y0 === y1) break;
+    			var e2 = err;
+    			if (e2 > -dx) { err -= dy; x0 += sx; }
+    			if (e2 < dy) { err += dx; y0 += sy; }
+  			}
+		}
+
+		function generateShuffledListofAllTiles(numRows, numCols) {
+			//returns array of elements
+			list = []
+			for (r=0; r<numRows; r++) {
+				for (c=0; c<numCols; c++) {
+					var tile = $( generateTileIdFromRowCol(r,c) ); //fixme - no need for jQuery here?
+					list.push(tile);
+				}
+			}
+			shuffleArray(list);
+			return list;
+		}
+
+		function shuffleArray(array) {
+			//Durstenfeld shuffle, from stackoverflow
+		    for (var i = array.length - 1; i > 0; i--) {
+		        var j = Math.floor(Math.random() * (i + 1));
+		        var temp = array[i];
+		        array[i] = array[j];
+		        array[j] = temp;
+		    }
+		    return array;
+}		
 	
 	</script>
 	
