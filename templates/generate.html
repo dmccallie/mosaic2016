@@ -83,6 +83,8 @@
 		TweenMax.set(".back", {rotationY:-180});
 		TweenMax.set([".back", ".front"], {backfaceVisibility:"hidden"});
 
+		var mySet = new Set();
+
 		$(".tileWrapper").click(function(event) {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
 			event.stopPropagation();
@@ -144,29 +146,39 @@
 			//console.log(lines);
 			tline.staggerTo(tiles, 1.0, {rotationY:"+=180", overwrite:"all"}, 0.04);
 			tline.play();
-		})
+		});
 
 		$("#b2").click(function() {
 			//fixme - needs state + absolute, else gets stuck on rapid clicks
 			//TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
 			var tline = new TimelineLite({paused:true});
+			//TimelineLite.smoothChildTiming = true;
 			var tiles = [];
 
 			randomlyFlipTiles(tline);
 			tline.play();
-		})
+		});
+
+		$("#b3").click(function() {
+			currentNeighbors = new Set();
+			currentNeighbors.add ({r:0, c:0} );
+			var aSet = newNeighborsOf({{numRows}}, {{numCols}}, currentNeighbors);
+			console.log(aSet);
+		});
 
 		function randomlyFlipTiles(tline) {
 			tiles = generateShuffledListofAllTiles({{numRows}}, {{numCols}});
 			//fixme - should this be a simple toggle -- all 0 or all 180?
-			var numSplits = 1;
+			var numSplits = 7;
 			tileSets = splitTiles(tiles, numSplits);
 			for (var i=0; i<numSplits; i++) {
 				//fixme - not sure this is working as intended?
 				//TweenMax.staggerTo(tileSets[i],0.8, {rotationY:"+=180", overwrite:"all"}, 0.01);
-				for (var t=0; t<tileSets[i].length; t++) {
-					TweenMax.to(tileSets[i][t],2, {rotationY:"+=180", overwrite:"all", delay:(t*0.01)});
-				}
+				//for (var t=0; t<tileSets[i].length; t++) {
+				//	TweenMax.to(tileSets[i][t],2, {rotationY:"+=180", overwrite:"all", delay:(t*0.01)});
+				//}
+				//console.log ("tileset has len = " + tileSets[i].length);
+				tline.to((tileSets[i]),2.5, {ease: Power4.easeInOut, rotationY:"+=180", overwrite:"all"},"-=1.5");
 			}
 		}
 
@@ -178,7 +190,7 @@
 			var toggle = 0;
 			for (var i=0; i<tileArray.length; i++) {
 				(tileSets[toggle]).push(tileArray[i]);
-				toogle = toggle + 1;
+				toggle = toggle + 1;
 				if (toggle >= numSplits) { toggle = 0; }
 			}
 			return tileSets
@@ -255,7 +267,48 @@
 		        array[j] = temp;
 		    }
 		    return array;
-}		
+		}
+
+		function newNeighborsOf(numRows, numCols, currentNeighbors) {
+			//return set of new next-door neighbors of the currentNeighbors set
+			//return as Object.r, Object.c
+			//return empty set if no new neighbors
+
+			function considerPoint(row, col) {
+				//see if point at (row,col) is new. If so, add to newNeighbors
+				//access outer Sets newNeighbors and currentNeighbors
+				var newPoint = Object();
+				newPoint.r = row;
+				newPoint.c = col;
+				console.log("considering ", newPoint);
+				if (! currentNeighbors.has(newPoint)) newNeighbors.add(newPoint);
+			}
+
+			var newNeighbors = new Set();
+			for (let point of currentNeighbors) {
+				var mcol = point.c;
+				var mrow = point.r;
+				var left = mcol - 1;
+				var right = mcol + 1;
+				var top = mrow - 1;
+				var bot = mrow + 1;
+
+				if (top > -1 && left > -1)				considerPoint(top, left);   //UL
+				if (top > -1 )							considerPoint(top, mcol);   //Above
+				if (top > -1 && right < numCols)		considerPoint(top, right);  //UR
+
+				if (left > -1)        					considerPoint(mrow, left);   //L
+				//center point not considered
+				if (right < numCols)					considerPoint(mrow, right);  //R
+
+				if (bot < numRows && left > -1)			considerPoint(bot, left);    //LL
+				if (bot < numRows )						considerPoint(bot, mcol);    //below
+				if (bot < numRows && right < numCols)	considerPoint(bot, right);   //LR
+			}
+			return newNeighbors;
+		}
+
+		
 	
 	</script>
 	
