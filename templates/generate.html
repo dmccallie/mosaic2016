@@ -160,10 +160,24 @@
 		});
 
 		$("#b3").click(function() {
-			currentNeighbors = new Set();
-			currentNeighbors.add ({r:0, c:0} );
-			var aSet = newNeighborsOf({{numRows}}, {{numCols}}, currentNeighbors);
-			console.log(aSet);
+			var rings = []; //will hold sets of tiles, in expanding rings
+			var ringNum = 0;
+
+			var alreadyUsed = new Set();
+			alreadyUsed.add ({r:0, c:0} ); //consieder first point already used
+
+			while (true) {
+				rings[ringNum] = newNeighborsOf({{numRows}}, {{numCols}}, alreadyUsed);
+				console.log(rings[ringNum]);
+				if ((rings[ringNum]).size == 0) break;
+				var tempArr = Array.from(rings[ringNum]);
+				for (var i=0; i<tempArr.length; i++) {
+					alreadyUsed.add(tempArr[i]);  //need a UNION operator!
+				}
+				ringNum = ringNum + 1;
+			}
+
+
 		});
 
 		function randomlyFlipTiles(tline) {
@@ -281,10 +295,18 @@
 				newPoint.r = row;
 				newPoint.c = col;
 				console.log("considering ", newPoint);
-				if (! currentNeighbors.has(newPoint)) newNeighbors.add(newPoint);
+				if ( currentNeighbors.has(newPoint) ) {
+					console.log("point already in use: ", newPoint);
+					delete newPoint;
+				} else {
+					console.log("found new point: ", newPoint);
+					newNeighbors.add(newPoint);
+				}
+				return;
 			}
 
 			var newNeighbors = new Set();
+
 			for (let point of currentNeighbors) {
 				var mcol = point.c;
 				var mrow = point.r;
