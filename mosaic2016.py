@@ -12,6 +12,26 @@ def generate():
 	tiles, tileEdge, numRows, numCols = generateTiles()
 	return render_template('generate.html', tileEdge=tileEdge, tileList = tiles, numRows=numRows, numCols=numCols)
 
+@app.route('/ivankballs')
+def ivankballs():
+	return render_template('ivank_balls.html')
+
+@app.route('/threecube')
+def threecube():
+	return render_template('threecube.html')
+
+@app.route('/css3d_periodictable')
+def css3d_periodictable():
+	return render_template('css3d_periodictable.html')
+
+@app.route('/css3d_images')
+def css3d_images():
+	return render_template('css3d_images.html')
+
+@app.route('/cardsTween')
+def cardsTween():
+	return render_template('cardsTween.html')
+
 def generateTiles():
 	#test generation via templates
 	# shoot for 9x9 at 64x64 tiles
@@ -35,6 +55,7 @@ def generateTiles():
 			aTile['backImg'] = img2
 			tileList.append(aTile)
 	return tileList, tileEdge, numRows, numCols
+
 
 def line(x0, y0, x1, y1):
 	"Bresenham's line algorithm (from rosettacode.org)"

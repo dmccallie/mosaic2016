@@ -1,0 +1,63 @@
+<html>
+<head>
+     <script type="text/javascript" src="http://lib.ivank.net/ivank.js"></script>
+     <script type="text/javascript">
+          var stage, p = new Point(0,0), cur = null;
+          
+          function Start()
+          {
+               stage = new Stage("c");
+               
+               var bd = new BitmapData("/static/IMG_2516.jpg");
+               console.log(bd);
+
+               for(var i=0; i<20; i++)
+               {
+                   
+                    //bd.height=64;
+                    //bd.width=64;
+                    //var b = new Bitmap(bd);
+                    var b = getScaledBM("/static/IMG_2516.jpg",128,128);
+
+                    b.scaleX = 0.5;
+                    b.scaleY = 0.5;
+                    b.x = Math.random()*900;
+                    b.y = Math.random()*500;
+                    b.buttonMode = true;
+                    b.alpha = 0.7;
+                    stage.addChild(b);
+                    
+                    b.addEventListener(MouseEvent.MOUSE_OVER, onMOv);
+                    b.addEventListener(MouseEvent.MOUSE_OUT , onMOu);
+                    b.addEventListener(MouseEvent.MOUSE_DOWN, onMD );
+                    b.addEventListener(MouseEvent.MOUSE_UP  , onMU );
+               }
+               stage.addEventListener(MouseEvent.MOUSE_MOVE, onMM );
+          }
+          
+          function onMOv(e){ e.target.alpha = 1.0; }
+          function onMOu(e){ e.target.alpha = 0.7; }
+          function onMD (e){ cur = e.target; p.x = cur.mouseX; p.y = cur.mouseY; console.log(cur); }
+          function onMU (e){ cur = null; }
+          function onMM (e)
+          {
+               if(cur == null) return;
+               cur.x = stage.mouseX - p.x;
+               cur.y = stage.mouseY - p.y;
+          }
+
+		function getScaledBM(img_url, targetW, targetH) {
+			//load original
+			bmdOrig = new BitmapData(img_url);
+    		var scaledBMD = new BitmapData.empty(targetW, targetH, 0);
+    		//scale the oroinal
+    		bmdOrig.height=128;
+    		bmdOrig.width = 128;
+    		//scaledBMD.draw(bmdOrig);
+    		return new Bitmap(bmdOrig);
+    	}
+
+     </script>
+</head>
+<body onload="Start();"><canvas id="c"></canvas></body>
+</html>

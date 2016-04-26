@@ -159,12 +159,11 @@
 			tline.play();
 		});
 
-		$("#b3").click(function() {
+		$("#b3").click(function(event) {
 			var rings = []; //will hold sets of tiles, in expanding rings
 			var ringNum = 0;
-
 			var alreadyUsed = new Set();
-			alreadyUsed.add ({r:0, c:0} ); //consieder first point already used
+			alreadyUsed.add(generateTileIdFromRowCol(0,0)); //consider first point already used
 
 			while (true) {
 				rings[ringNum] = newNeighborsOf({{numRows}}, {{numCols}}, alreadyUsed);
@@ -176,6 +175,11 @@
 				}
 				ringNum = ringNum + 1;
 			}
+			tline = new TimelineLite({paused:true});
+			for (var r=0; r<rings.length; r++) {
+				tline.to([...rings[r]],.2, {ease: Power1.easeInOut, rotationY:"+=180", overwrite:"all"});	
+			}
+			tline.play();
 
 
 		});
@@ -192,7 +196,7 @@
 				//	TweenMax.to(tileSets[i][t],2, {rotationY:"+=180", overwrite:"all", delay:(t*0.01)});
 				//}
 				//console.log ("tileset has len = " + tileSets[i].length);
-				tline.to((tileSets[i]),2.5, {ease: Power4.easeInOut, rotationY:"+=180", overwrite:"all"},"-=1.5");
+				tline.to((tileSets[i]),1, {ease: Power3.easeInOut, rotationY:"+=180", overwrite:"all"},"-=1.5");
 			}
 		}
 
@@ -210,32 +214,16 @@
 			return tileSets
 		}
 
-		/*
-		function bline(tline, offset, x0, y0, x1, y1) {
-			//from rosettacode.org - Bresenham's line drawing
-  			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-  			var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; 
-  			var err = (dx>dy ? dx : -dy)/2;
- 
-  			var start = 0;
-  			while (true) {
-    			//setPixel(x0,y0);
-    			var id = "#row_" + x0.toString() + "_" + "col_" + y0.toString();
-    			var tile = $(id);
-    			//console.log(tile);
-    			//tline.staggerTo(tile,1,{rotationY:"+=180", offset});
-    			tline.to(tile,1, {rotationY:"+=180"},start);
-    			start = start + offset;
-    			if (x0 === x1 && y0 === y1) break;
-    			var e2 = err;
-    			if (e2 > -dx) { err -= dy; x0 += sx; }
-    			if (e2 < dy) { err += dx; y0 += sy; }
-  			}
-		}
-		*/
 
 		function generateTileIdFromRowCol(row, col) {
 			return "#row_" + row.toString() + "_" + "col_" + col.toString();
+		}
+
+		function getRowColFromTileName(name) {
+			nums = name.match(/\d+/g); //array, row=0, col=1
+			r = parseInt(nums[0]);
+			c = parseInt(nums[1]);
+			return [r,c];
 		}
 
 		function blineList(list, x0, y0, x1, y1) {
@@ -291,15 +279,13 @@
 			function considerPoint(row, col) {
 				//see if point at (row,col) is new. If so, add to newNeighbors
 				//access outer Sets newNeighbors and currentNeighbors
-				var newPoint = Object();
-				newPoint.r = row;
-				newPoint.c = col;
-				console.log("considering ", newPoint);
+				var newPoint = generateTileIdFromRowCol(row,col);
+				//console.log("considering ", newPoint);
 				if ( currentNeighbors.has(newPoint) ) {
-					console.log("point already in use: ", newPoint);
+					//console.log("point already in use: ", newPoint);
 					delete newPoint;
 				} else {
-					console.log("found new point: ", newPoint);
+					//console.log("found new point: ", newPoint);
 					newNeighbors.add(newPoint);
 				}
 				return;
@@ -308,8 +294,9 @@
 			var newNeighbors = new Set();
 
 			for (let point of currentNeighbors) {
-				var mcol = point.c;
-				var mrow = point.r;
+				var rc = getRowColFromTileName(point);
+				var mcol = rc[1];
+				var mrow = rc[0];
 				var left = mcol - 1;
 				var right = mcol + 1;
 				var top = mrow - 1;

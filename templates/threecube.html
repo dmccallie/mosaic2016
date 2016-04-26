@@ -1,0 +1,215 @@
+<html>
+	<head>
+		<title>My first Three.js app</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+	</head>
+	<body>
+		<script src="/static/three.js"></script>
+		<script src="/static/stats.min.js"></script>
+		<script>
+
+
+			function changeBackOfCard(newImageTexture, card) {
+
+				//var imageBack = new THREE.TextureLoader().load(newImageURL);
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:newImageTexture  } );
+				for (i=0; i<2; i++) {
+					var obj = card.children[i].userData["side"];
+					if ( obj == "back") {
+						card.remove(card.children[i]);
+						var geometry2 = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+						geometry2.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+						var mf = new THREE.Mesh(geometry2,faceMaterialBack);
+						mf.userData = {"side": "back"};
+						card.add(mf);
+						return;
+					}
+				}
+				return;
+			}
+
+			function createCardOrig(geometry, frontTexture, backTexture) {
+				//returns a mesh, ready to be added to scene
+				//var imageFront = new THREE.TextureLoader().load(front);
+				//var imageBack = new THREE.TextureLoader().load(back);
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture,  side:THREE.BackSide  } );
+				//var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+				var card = THREE.SceneUtils.createMultiMaterialObject(geometry, [faceMaterialFront, faceMaterialBack] );
+				return card;
+			}
+			function createCardObject3D(geometry, frontTexture, backTexture) {
+				//returns a mesh, ready to be added to scene
+				//var imageFront = new THREE.TextureLoader().load(front);
+				//var imageBack = new THREE.TextureLoader().load(back);
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture,  side:THREE.BackSide  } );
+				//var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+				//var card = THREE.SceneUtils.createMultiMaterialObject(geometry, [faceMaterialFront, faceMaterialBack] );
+				var card = new THREE.Object3D();
+				card.add(new THREE.Mesh(geometry,faceMaterialFront).userData = {"side": "front"});
+				card.add(new THREE.Mesh(geometry,faceMaterialBack).userData = {"side": "back"});
+				return card;
+			}
+
+			function createCardTwoMesh(geometry, geometryBack, frontTexture, backTexture) {
+				//returns a mesh, ready to be added to scene
+				//var imageFront = new THREE.TextureLoader().load(front);
+				//var imageBack = new THREE.TextureLoader().load(back);
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
+				//var geometry2 = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+				//geometry2.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+
+				var card = new THREE.Object3D();
+
+				var mf = new THREE.Mesh(geometry,faceMaterialFront);
+				mf.userData = {"side": "front"};
+				card.add(mf);
+
+				var mb = new THREE.Mesh(geometryBack,faceMaterialBack);
+				mb.userData = {"side": "back"};
+				card.add(mb);
+
+				return card;
+			}
+
+			function createCardLean(geometry, frontTexture, backTexture) {
+				//returns a mesh, ready to be added to scene
+				//var imageFront = new THREE.TextureLoader().load(front);
+				//var imageBack = new THREE.TextureLoader().load(back);
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture,  side:THREE.BackSide  } );
+				var materials = [faceMaterialFront, faceMaterialBack];
+
+				var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+
+				for (var i = 0, len = geometry.faces.length; i < len; i++) {
+    				var face = geometry.faces[i].clone();
+    				face.materialIndex = i;
+    				geometry.faces.push(face);
+    				geometry.faceVertexUvs[0].push(geometry.faceVertexUvs[0][i].slice(0));
+    			}
+
+				var card = new THREE.Mesh(geometry, materials);
+
+				return card;
+			}			
+
+			function createLotsofCards(num, geometry, geometryBack, front, back) {
+				cards = [];
+				for (var i=0; i<num; i++) {
+					var card = createCardTwoMesh(geometry, geometryBack, front, back);
+					cards.push(card);
+				}
+				return cards;
+			}
+
+			function positionLotsofCards(cards) {
+				for (var i=0; i<cards.length; i++) {
+					//cards[i].position.x = -2 + ((i %5) * Math.random());
+					//cards[i].position.y = -2 + ((i %5) * Math.random());
+					//cards[i].position.z = ((i % 4) * Math.random());
+					var col = (i % 60);
+					var row = Math.floor(i / 60); 
+					cards[i].position.x = -15 + (col * 0.50);
+					cards[i].position.y = -8 + (row * 0.50);
+					cards[i].position.z = 0;
+				}
+			}			
+
+			function updateCards(cards) {
+				for (var i=0; i<cards.length; i++) {
+					//cards[i].rotation.x += 0.01;
+					cards[i].rotation.y += Math.PI/60;
+					//cards[i].position.x += 0.001;
+					//cards[i].rotation.z += Math.PI/2;					
+				}
+
+			}
+
+			var container = document.createElement( 'div' );
+			document.body.appendChild( container );
+
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 750, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+
+			stats = new Stats();
+			container.appendChild( stats.dom );
+
+			var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+			//var anImage = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
+			var image1 = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
+			var image2 = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
+
+			var faceMaterial1 = new THREE.MeshBasicMaterial( {  wireframe:false, map:image1, transparent:true, opacity:0.4} );
+			var faceMaterial2 = new THREE.MeshBasicMaterial( {  wireframe:false, map:image2, side:THREE.DoubleSide  } );
+
+			var faces = [faceMaterial1,faceMaterial2,faceMaterial1,faceMaterial2, faceMaterial1,faceMaterial2];
+			
+			var material = new THREE.MultiMaterial( faces );
+			var cube = new THREE.Mesh( geometry, material );
+			scene.add( cube );
+			cube.position.z = -1;
+
+			//var card = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
+			//var card2 = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
+			//var card3 = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
+			
+			var imageFront = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
+			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
+			var imageThird = new THREE.TextureLoader().load("/static/IMG_3098.jpg");
+
+			var geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
+			var geometryBack = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
+			geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+			
+			var cards = createLotsofCards(2400, geometry, geometryBack, imageFront, imageBack);
+
+			//scene.add(card);
+			//scene.add(card2);
+			//scene.add(card3);
+			//console.log(card);
+			
+			for (var c=0; c<cards.length; c++) {
+				scene.add( cards[c] );	
+			}
+
+			positionLotsofCards(cards);
+
+			camera.position.z = 10;
+
+			var axisHelper = new THREE.AxisHelper( 5 );
+			scene.add( axisHelper );
+
+			var counter = 0;
+			var render = function () {
+				counter++;
+				requestAnimationFrame( render );
+
+				cube.rotation.x += 0.01;
+				cube.rotation.y += 0.01;
+
+				updateCards(cards);
+
+				if (counter % 5 == 0) {
+					var c = Math.floor(Math.random() * 2000);
+					changeBackOfCard(imageThird, cards[c]);
+					//console.log(c);
+				}
+
+				renderer.render(scene, camera);
+				stats.update();
+			};
+
+			render();
+		</script>
+	</body>
+</html>
