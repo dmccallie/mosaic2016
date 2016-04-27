@@ -8,7 +8,8 @@
 	</head>
 	<body>
 		<script src="/static/three.js"></script>
-		<script src="/static/tween.min.js"></script>
+		// <script src="/static/tween.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.2/TweenMax.min.js"></script>
 		<script src="/static/TrackballControls.js"></script>
 		<script src="/static/stats.min.js"></script>
 		<script>
@@ -113,7 +114,9 @@
 
 
 			function transform( cards, duration ) {
-				TWEEN.removeAll();
+				//TWEEN.removeAll();
+
+				var duration = duration / 1000;
 
 				for ( var i = 0; i < cards.length; i ++ ) {
 
@@ -123,43 +126,47 @@
 
 						if (cardSideUp[i] == 0) {
 							cardSideUp[i] = 1;
-							new TWEEN.Tween( aCard.rotation )
-								.to( {  x: Math.PI },  duration )
-								.easing( TWEEN.Easing.Exponential.InOut )
-								.start();						
+							TweenMax.to(aCard.rotation, duration, { x: Math.PI} );
+							//new TWEEN.Tween( aCard.rotation )
+							//	.to( {  x: Math.PI },  duration )
+							//	.easing( TWEEN.Easing.Exponential.InOut )
+							//	.start();						
 						} else {
 							cardSideUp[i] = 0;
-							new TWEEN.Tween( aCard.rotation )
-								.to( { y: 0, x:0 },  duration )
-								.easing( TWEEN.Easing.Linear.None )
-								.start();
-							}							
+							TweenMax.to(aCard.rotation, duration, { y: 0, x:0 } );
+							//new TWEEN.Tween( aCard.rotation )
+							//	.to( { y: 0, x:0 },  duration )
+							//	.easing( TWEEN.Easing.Linear.None )
+							//	.start();
+						}							
 					} else {
 						if (cardSideUp[i] == 0) {
 							cardSideUp[i] = 1;
-							new TWEEN.Tween( aCard.rotation )
-								.to( {  y: Math.PI },  duration )
-								.easing( TWEEN.Easing.Exponential.InOut )
-								.start();						
+							TweenMax.to(aCard.rotation, duration, { y: Math.PI} );
+							//new TWEEN.Tween( aCard.rotation )
+							//	.to( {  y: Math.PI },  duration )
+							//	.easing( TWEEN.Easing.Exponential.InOut )
+							//	.start();						
 						} else {
 							cardSideUp[i] = 0;
-							new TWEEN.Tween( aCard.rotation )
-								.to( { y: 0, x:0 },  duration )
-								.easing( TWEEN.Easing.Linear.None )
-								.start();							
+							TweenMax.to(aCard.rotation, duration, { y: 0, x:0 } );
+							//new TWEEN.Tween( aCard.rotation )
+							//	.to( { y: 0, x:0 },  duration )
+							//	.easing( TWEEN.Easing.Linear.None )
+							//	.start();							
 						}	
 					}
 				}
 
 				//this tween causes rendering
-				//use this to avoid background rendering
-
-				new TWEEN.Tween( this )
-					.to( {}, duration  )
-					.onUpdate( render )
-					.start();
+				//new TWEEN.Tween( this )
+				//	.to( {}, duration  )
+				//	.onUpdate( render )
+				//	.start();
 
 			}
+
+
 
 			function onWindowResize() {
 
@@ -172,25 +179,24 @@
 
 			}
 
+
+
+			//function animate() {
+			//	requestAnimationFrame( animate );
+			//	TWEEN.update(); //Tween will call render()
+			//	//controls.update();	
+			//}
+
 			var render = function () {
 				renderer.render(scene, camera);
 				stats.update();
+
 			};
 
-			function animate() {
-				requestAnimationFrame( animate );
-				TWEEN.update(); //Tween will call render()
-				//render(); //use this to render constantly, even when not tweening
-				//constant rendering uses 100% CPU
-				//if render with TWEEN.tween, CPU is only used during the actual tweening?
-				//controls.update();	
-			}
+			//TweenLite.ticker.fps(50);
+			TweenLite.ticker.addEventListener("tick", render);
 
-
-
-
-			animate();
-
+			//animate();
 			//transform(cards, 4000);
 
 		</script>

@@ -17,8 +17,12 @@ def ivankballs():
 	return render_template('ivank_balls.html')
 
 @app.route('/threecube')
-def threecube():
+def threecubecanvas():
 	return render_template('threecube.html')
+
+@app.route('/threecubecanvas')
+def threecube():
+	return render_template('threecubecanvas.html')
 
 @app.route('/css3d_periodictable')
 def css3d_periodictable():
@@ -31,6 +35,10 @@ def css3d_images():
 @app.route('/cardsTween')
 def cardsTween():
 	return render_template('cardsTween.html')
+
+@app.route('/cardsTweenLite')
+def cardsTweenLite():
+	return render_template('cardsTweenLite.html')
 
 def generateTiles():
 	#test generation via templates

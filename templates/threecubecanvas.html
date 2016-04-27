@@ -3,10 +3,28 @@
 		<title>My first Three.js app</title>
 		<style>
 			body { margin: 0; }
-			canvas { width: 100%; height: 100% }
+			//canvas { width: 100%; height: 100% }
+			canvas {
+			 	background-color: #000;
+    			width: 100%;
+    			height: 100%;
+    			border: 1px solid black;
+    			margin: 100px;
+    			padding: 0px;
+    			position: fixed; /* fixed or static */
+    		}
+    		div.spacer {
+    			width: 200px;
+    			height: 50px;
+    			background-color: #000;
+    		}
 		</style>
 	</head>
 	<body>
+		
+		<div id="spacer">This is the spacer</div>
+		<canvas id="outputcanvas"></canvas>
+
 		<script src="/static/three.js"></script>
 		<script src="/static/stats.min.js"></script>
 		<script>
@@ -126,15 +144,21 @@
 
 			}
 
+			var outputcanvasEle = document.getElementById("outputcanvas");
+			console.log("canvas = ", outputcanvasEle);
+			
 			var container = document.createElement( 'div' );
 			document.body.appendChild( container );
 
 			var scene = new THREE.Scene();
-			var camera = new THREE.PerspectiveCamera( 750, window.innerWidth/window.innerHeight, 0.1, 1000 );
+			//var camera = new THREE.PerspectiveCamera( 750, window.innerWidth/window.innerHeight, 0.1, 1000 );
+			var camera = new THREE.PerspectiveCamera( 750, 800/800, 0.1, 1000 );
 
-			var renderer = new THREE.WebGLRenderer();
-			renderer.setSize( window.innerWidth, window.innerHeight );
-			document.body.appendChild( renderer.domElement );
+
+			var renderer = new THREE.WebGLRenderer({canvas:outputcanvas});
+			renderer.setSize( 800, 800 , true);
+			//renderer.setSize( window.innerWidth, window.innerHeight );
+			//document.body.appendChild( renderer.domElement );
 
 			stats = new Stats();
 			container.appendChild( stats.dom );
@@ -204,5 +228,7 @@
 
 			render();
 		</script>
+
+
 	</body>
 </html>
