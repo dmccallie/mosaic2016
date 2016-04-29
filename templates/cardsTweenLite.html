@@ -85,7 +85,7 @@
 			
 			var imageFront = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
 			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
-			var geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
+			var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
 			
 			var cards = createLotsofCards(1000, geometry, imageFront, imageBack);
 			var cardSideUp = [cards.length];

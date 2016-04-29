@@ -11,6 +11,9 @@
 		<script src="/static/stats.min.js"></script>
 		<script>
 
+			var mouse = new THREE.Vector2();
+
+			var raycaster;
 
 			function changeBackOfCard(newImageTexture, card) {
 
@@ -59,8 +62,6 @@
 				//returns a mesh, ready to be added to scene
 				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture } );
 				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
-				//var geometry2 = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
-				//geometry2.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
 
 				var card = new THREE.Object3D();
 
@@ -73,6 +74,19 @@
 				card.add(mb);
 
 				return card;
+			}
+
+			function createCardSlab(geometry, geometryBack, frontTexture, backTexture) {
+				//uses a thin cube, but was considerably slower than the "two mesh" approach above
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
+				var faceMaterialEdge = new THREE.MeshBasicMaterial({color:'gray'});
+				
+				var facesSlab = [faceMaterialEdge,faceMaterialEdge,faceMaterialEdge, faceMaterialEdge,faceMaterialFront,faceMaterialBack];
+				var materialSlab = new THREE.MultiMaterial( facesSlab );
+				var slab = new THREE.Mesh( geometry, materialSlab );
+
+				return slab;
 			}
 
 			function createCardLean(geometry, frontTexture, backTexture) {
@@ -100,6 +114,7 @@
 			function createLotsofCards(num, geometry, geometryBack, front, back) {
 				cards = [];
 				for (var i=0; i<num; i++) {
+					//var card = createCardSlab(geometry, geometryBack, front, back);
 					var card = createCardTwoMesh(geometry, geometryBack, front, back);
 					cards.push(card);
 				}
@@ -126,6 +141,31 @@
 
 			}
 
+			var curEdges = null;
+			function findIntersection(raycaster, scene, camera) {
+				var Intersected;
+				
+				raycaster.setFromCamera( mouse, camera );
+				var intersects = raycaster.intersectObjects( scene.children, true );
+				
+				if ( intersects.length > 0 ) {
+					console.log("intersected = ", intersects[0]);
+					if (curEdges === intersects[0].object) {
+						//console.log("no change edge");
+						return intersects[0];
+					}
+					else if (curEdges) {
+						scene.remove(curEdges);
+						curEdges = null;
+					}
+					curEdges = new THREE.EdgesHelper(intersects[0].object, 0x00ff00);
+					scene.add( curEdges);
+					return intersects[0];
+				}
+				//console.log("missed!");
+				return null;
+			}
+
 			var container = document.createElement( 'div' );
 			document.body.appendChild( container );
 
@@ -133,8 +173,13 @@
 			var camera = new THREE.PerspectiveCamera( 750, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
 			var renderer = new THREE.WebGLRenderer();
+			//renderer.setPixelRatio( window.devicePixelRatio );
 			renderer.setSize( window.innerWidth, window.innerHeight );
+			//renderer.sortObjects = false; //WHAT DOES THIS DO?
+
 			document.body.appendChild( renderer.domElement );
+
+			raycaster = new THREE.Raycaster();
 
 			stats = new Stats();
 			container.appendChild( stats.dom );
@@ -153,22 +198,35 @@
 			var cube = new THREE.Mesh( geometry, material );
 			scene.add( cube );
 			cube.position.z = -1;
-
-			//var card = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
-			//var card2 = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
-			//var card3 = createCard("/static/IMG_2516.jpg", "/static/CRW_6843.jpg");
 			
 			var imageFront = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
-			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
+			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg"); //flower
 			var imageThird = new THREE.TextureLoader().load("/static/IMG_3098.jpg");
 
-			var geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
+			var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
 			var geometryBack = geometry.clone(); //to serve as backside, inverted texture
-			//var geometryBack = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
 			geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
-			
 			var cards = createLotsofCards(2400, geometry, geometryBack, imageFront, imageBack);
 
+
+			//var geometry = new THREE.BoxGeometry( .5, .5, 0.025 );
+			//var cards = createLotsofCards(2400, geometry, null, imageFront, imageBack);
+
+
+			//slab experiment - was too slow!
+			/*
+			var geometrySlab = new THREE.BoxGeometry( 1, 1, 0.05 );
+			var faceSlabMaterialFront = new THREE.MeshBasicMaterial( { map:imageFront} );
+			var faceSlabMaterialBack = new THREE.MeshBasicMaterial( { map:imageBack} );
+			var faceSlabMaterialEdge = new THREE.MeshBasicMaterial({color:'red'});
+			var facesSlab = [faceSlabMaterialEdge,faceSlabMaterialEdge,faceSlabMaterialEdge, faceSlabMaterialEdge,faceSlabMaterialFront,faceSlabMaterialBack];
+			var materialSlab = new THREE.MultiMaterial( facesSlab );
+			var slab = new THREE.Mesh( geometrySlab, materialSlab );
+			scene.add( slab );
+			slab.position.z = +22;
+			*/
+
+		
 			
 			for (var c=0; c<cards.length; c++) {
 				scene.add( cards[c] );	
@@ -179,7 +237,16 @@
 			camera.position.z = 10;
 
 			var axisHelper = new THREE.AxisHelper( 5 );
-			scene.add( axisHelper );
+			//scene.add( axisHelper );
+
+			document.addEventListener( 'click', onDocumentMouseClick, false );
+			function onDocumentMouseClick( event ) {
+				event.preventDefault();
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+				//console.log("click event", event, mouse);
+				var item = findIntersection(raycaster, scene, camera);
+			}
 
 			var frames = 0;
 			var render = function () {
@@ -189,6 +256,9 @@
 	
 				cube.rotation.x += 0.01;
 				cube.rotation.y += 0.01;
+
+				//slab.rotation.x += 0.01;
+				//slab.rotation.y += 0.01;
 
 				updateCards(cards);
 
