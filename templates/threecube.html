@@ -34,6 +34,7 @@
 				return;
 			}
 
+			/*
 			function createCardOrig(geometry, frontTexture, backTexture) {
 				//returns a mesh, ready to be added to scene
 				//var imageFront = new THREE.TextureLoader().load(front);
@@ -57,10 +58,11 @@
 				card.add(new THREE.Mesh(geometry,faceMaterialBack).userData = {"side": "back"});
 				return card;
 			}
+			*/
 
 			function createCardTwoMesh(geometry, geometryBack, frontTexture, backTexture) {
 				//returns a mesh, ready to be added to scene
-				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture } );
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture} );
 				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
 
 				var card = new THREE.Object3D();
@@ -141,30 +143,51 @@
 
 			}
 
-			var curEdges = null;
-			function findIntersection(raycaster, scene, camera) {
+			var lastObject = null;
+			var white = new THREE.Color(0xffffff);
+			var black = new THREE.Color(0x000000);
+			var hilightColor = new THREE.Color(1,0,0);
+
+			function handleMouseMove(raycaster, scene, camera) {
 				var Intersected;
 				
 				raycaster.setFromCamera( mouse, camera );
 				var intersects = raycaster.intersectObjects( scene.children, true );
 				
 				if ( intersects.length > 0 ) {
-					console.log("intersected = ", intersects[0]);
-					if (curEdges === intersects[0].object) {
+					var hit = intersects[0];
+					//console.log("intersected = ", hit);
+					if (lastObject === hit.object) {
 						//console.log("no change edge");
-						return intersects[0];
+						return hit;
 					}
-					else if (curEdges) {
-						scene.remove(curEdges);
-						curEdges = null;
+					else if (lastObject) {
+						//scene.remove(curEdges);
+						lastObject.material.color = white;
+						lastObject = null;
 					}
-					curEdges = new THREE.EdgesHelper(intersects[0].object, 0x00ff00);
-					scene.add( curEdges);
-					return intersects[0];
+					//curEdges = new THREE.EdgesHelper(hit.object, 0x00ff00);
+					//scene.add( curEdges);
+					hit.object.material.color = hilightColor;
+					lastObject = hit.object;
+					return hit;
 				}
 				//console.log("missed!");
 				return null;
 			}
+
+			function handleMouseClick(raycaster, scene, camera) {
+				var Intersected;
+				
+				raycaster.setFromCamera( mouse, camera );
+				var intersects = raycaster.intersectObjects( scene.children, true );
+				
+				if ( intersects.length > 0 ) {
+					hit = intersects[0];
+					console.log("Hit = ", hit);
+					return hit;
+				} else return null;
+			}			
 
 			var container = document.createElement( 'div' );
 			document.body.appendChild( container );
@@ -239,13 +262,19 @@
 			var axisHelper = new THREE.AxisHelper( 5 );
 			//scene.add( axisHelper );
 
+			document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+			function onDocumentMouseMove( event ) {
+				event.preventDefault();
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+				var item = handleMouseMove(raycaster, scene, camera);
+			}
 			document.addEventListener( 'click', onDocumentMouseClick, false );
 			function onDocumentMouseClick( event ) {
 				event.preventDefault();
 				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-				//console.log("click event", event, mouse);
-				var item = findIntersection(raycaster, scene, camera);
+				var item = handleMouseClick(raycaster, scene, camera);
 			}
 
 			var frames = 0;

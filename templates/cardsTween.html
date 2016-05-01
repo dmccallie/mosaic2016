@@ -24,10 +24,28 @@
 				return card;
 			}
 
-			function createLotsofCards(num, geometry, front, back) {
+			function createCardTwoMesh(geometry, geometryBack, frontTexture, backTexture) {
+				//returns a mesh, ready to be added to scene
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture} );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
+
+				var card = new THREE.Object3D();
+
+				var mf = new THREE.Mesh(geometry,faceMaterialFront);
+				mf.userData = {"side": "front"};
+				card.add(mf);
+
+				var mb = new THREE.Mesh(geometryBack,faceMaterialBack);
+				mb.userData = {"side": "back"};
+				card.add(mb);
+
+				return card;
+			}			
+
+			function createLotsofCards(num, geometry, geometryBack, front, back) {
 				cards = [];
 				for (var i=0; i<num; i++) {
-					var card = createCard(geometry, front, back);
+					var card = createCardTwoMesh(geometry, geometryBack, front, back);
 					cards.push(card);
 				}
 				return cards;
@@ -68,25 +86,17 @@
 			stats = new Stats();
 			container.appendChild( stats.dom );
 
-			var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-			//var anImage = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
-			var image1 = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
-			var image2 = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
-
-			var faceMaterial1 = new THREE.MeshBasicMaterial( {  wireframe:false, map:image1, transparent:true, opacity:0.4} );
-			var faceMaterial2 = new THREE.MeshBasicMaterial( {  wireframe:false, map:image2, side:THREE.DoubleSide  } );
-
-			var faces = [faceMaterial1,faceMaterial2,faceMaterial1,faceMaterial2, faceMaterial1,faceMaterial2];
-			
-			var material = new THREE.MultiMaterial( faces );
-			var cube = new THREE.Mesh( geometry, material );
-			//scene.add( cube );
 			
 			var imageFront = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
-			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg");
-			var geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
+			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg"); //flower
+			var imageThird = new THREE.TextureLoader().load("/static/IMG_3098.jpg");
 			
-			var cards = createLotsofCards(1000, geometry, imageFront, imageBack);
+			var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+			var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
+			geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+			
+			var cards = createLotsofCards(1000, geometry, geometryBack, imageFront, imageBack);
+			
 			var cardSideUp = [cards.length];
 
 			
@@ -154,10 +164,10 @@
 				//this tween causes rendering
 				//use this to avoid background rendering
 
-				new TWEEN.Tween( this )
-					.to( {}, duration  )
-					.onUpdate( render )
-					.start();
+				//new TWEEN.Tween( this )
+				//	.to( {}, duration  )
+				//	.onUpdate( render )
+				//	.start();
 
 			}
 
@@ -173,14 +183,15 @@
 			}
 
 			var render = function () {
+				TWEEN.update();
 				renderer.render(scene, camera);
 				stats.update();
 			};
 
 			function animate() {
 				requestAnimationFrame( animate );
-				TWEEN.update(); //Tween will call render()
-				//render(); //use this to render constantly, even when not tweening
+				//TWEEN.update(); //Tween will call render()
+				render(); //use this to render constantly, even when not tweening
 				//constant rendering uses 100% CPU
 				//if render with TWEEN.tween, CPU is only used during the actual tweening?
 				//controls.update();	
