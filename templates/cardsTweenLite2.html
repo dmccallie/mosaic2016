@@ -226,12 +226,23 @@
 					ringNum = ringNum + 1;
 				}
 				//tline = new TimelineLite({paused:true});
-				for (var r=0; r<rings.length; r++) {
+				for (var r2=0; r2<rings.length; r2++) {
 					//console.log("ring = ", rings[r]);
-					var tempArr = Array.from(rings[r]);
+					var tempArr = Array.from(rings[r2]);
 					for (var t=0; t<tempArr.length; t++) {
-						//console.log("rotation = ", rings[r][t].rotation);
-						TweenMax.to(tempArr[t].rotation, 3, { y:"+=3.1415", overwrite:"auto"}).delay(0.18*r); 
+						//adjust rotation based on direction of the "wave"
+						var rc = inv_map[tempArr[t].id];
+						//console.log(rc);
+						//var zmag = 2 - (r2*.125);
+						if (rc.col > c ) {
+							TweenMax.to(tempArr[t].rotation, 3, { y:"+=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+							TweenMax.to(tempArr[t].position, .3, { z:1,  overwrite:"auto"}).delay(0.18*r2);
+							TweenMax.to(tempArr[t].position, .3, { z:0,  overwrite:"auto"}).delay((0.18*r2)+.3); 
+						} else {
+							TweenMax.to(tempArr[t].rotation, 3, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+							TweenMax.to(tempArr[t].position, 2, { z:1, overwrite:"auto"}).delay(0.18*r2);
+							TweenMax.to(tempArr[t].position, 2, { z:0, overwrite:"auto"}).delay((0.18*r2)+2); 
+						}
 					}
 				}
 				TweenMax.to(startingTile.rotation, 5, { y:"+=3.1415*5", overwrite:"auto"}); 
