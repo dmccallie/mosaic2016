@@ -28,8 +28,10 @@
 
 			function createCardTwoMesh(geometry, geometryBack, frontTexture, backTexture) {
 				//returns a mesh, ready to be added to scene
-				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture} );
-				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
+				//var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
+				//var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture, side:THREE.FrontSide   } );
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { color:"red" } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { color: "blue"   } );
 
 				var card = new THREE.Object3D();
 
@@ -235,13 +237,15 @@
 						//console.log(rc);
 						//var zmag = 2 - (r2*.125);
 						if (rc.col > c ) {
-							TweenMax.to(tempArr[t].rotation, 3, { y:"+=3.1415", overwrite:"auto"}).delay(0.18*r2); 
-							TweenMax.to(tempArr[t].position, .3, { z:1,  overwrite:"auto"}).delay(0.18*r2);
-							TweenMax.to(tempArr[t].position, .3, { z:0,  overwrite:"auto"}).delay((0.18*r2)+.3); 
+							TweenMax.to(tempArr[t].rotation, 2.5, { y:"+=3.1415", overwrite:"auto"}).delay(0.11*r2); 
+							TweenMax.to(tempArr[t].position, 1.1, { z:1, 
+								ease: Power2.easeInOut, overwrite:"auto"}).delay(0.11*r2);
+							TweenMax.to(tempArr[t].position, .9, { z:0,  
+								ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 						} else {
-							TweenMax.to(tempArr[t].rotation, 3, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
-							TweenMax.to(tempArr[t].position, 2, { z:1, overwrite:"auto"}).delay(0.18*r2);
-							TweenMax.to(tempArr[t].position, 2, { z:0, overwrite:"auto"}).delay((0.18*r2)+2); 
+							TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+							TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
+							TweenMax.to(tempArr[t].position, 1, { z:0, overwrite:"auto"}).delay((0.18*r2)+1); 
 						}
 					}
 				}
