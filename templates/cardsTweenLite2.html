@@ -27,18 +27,20 @@
 		<script src="/static/stats.min.js"></script>
 		<script>
 
-			function createCardTwoMesh(geometry, geometryBack, frontTexture, backTexture) {
+			function createCardTwoMesh(geometry, geometryBack, frontMaterial, backMaterial) {
 				//returns a mesh, ready to be added to scene
-				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture} );
-				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture  } );
+				//var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
+				//var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture, side:THREE.FrontSide   } );
+				//var faceMaterialFront = new THREE.MeshBasicMaterial( { color:"red" } );
+				//var faceMaterialBack =  new THREE.MeshBasicMaterial( { color: "blue"   } );
 
 				var card = new THREE.Object3D();
 
-				var mf = new THREE.Mesh(geometry,faceMaterialFront);
+				var mf = new THREE.Mesh(geometry, frontMaterial);
 				mf.userData = {"side": "front"};
 				card.add(mf);
 
-				var mb = new THREE.Mesh(geometryBack,faceMaterialBack);
+				var mb = new THREE.Mesh(geometryBack, backMaterial);
 				mb.userData = {"side": "back"};
 				card.add(mb);
 
@@ -50,10 +52,13 @@
 			var inv_map = {}; //hash maps parent card object to original row and col
 
 			function createLotsofCards(rows, cols, geometry, geometryBack, front, back) {
+				//cache the materials here, for now
+				var faceMaterialFront = new THREE.MeshBasicMaterial( { map:front, side:THREE.FrontSide } );
+				var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:back, side:THREE.FrontSide   } );
 				for (var row=0; row<rows; row++) {
 					map[row] = [];
 					for (col=0; col<cols; col++) {
-						var card = createCardTwoMesh(geometry, geometryBack, front, back);
+						var card = createCardTwoMesh(geometry, geometryBack, faceMaterialFront, faceMaterialBack);
 						map[row][col] = card;
 						inv_map[card.id] = {'row': row, 'col':col};
 					}
@@ -100,8 +105,8 @@
 			var raycaster = new THREE.Raycaster();
 
 
-			var imageFront = new THREE.TextureLoader().load("/static/IMG_2516.jpg");
-			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843.jpg"); //flower
+			var imageFront = new THREE.TextureLoader().load("/static/weir-meadow-256.jpg");
+			var imageBack = new THREE.TextureLoader().load("/static/CRW_6843-256.jpg"); //flower
 			var imageThird = new THREE.TextureLoader().load("/static/IMG_3098.jpg");
 			
 			var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
@@ -236,13 +241,15 @@
 						//console.log(rc);
 						//var zmag = 2 - (r2*.125);
 						if (rc.col > c ) {
-							TweenMax.to(tempArr[t].rotation, 3, { y:"+=3.1415", overwrite:"auto"}).delay(0.18*r2); 
-							TweenMax.to(tempArr[t].position, .3, { z:1,  overwrite:"auto"}).delay(0.18*r2);
-							TweenMax.to(tempArr[t].position, .3, { z:0,  overwrite:"auto"}).delay((0.18*r2)+.3); 
+							TweenMax.to(tempArr[t].rotation, 2.5, { y:"+=3.1415", overwrite:"auto"}).delay(0.11*r2); 
+							TweenMax.to(tempArr[t].position, 1.1, { z:1, 
+								ease: Power2.easeInOut, overwrite:"auto"}).delay(0.11*r2);
+							TweenMax.to(tempArr[t].position, .9, { z:0,  
+								ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 						} else {
-							TweenMax.to(tempArr[t].rotation, 3, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
-							TweenMax.to(tempArr[t].position, 2, { z:1, overwrite:"auto"}).delay(0.18*r2);
-							TweenMax.to(tempArr[t].position, 2, { z:0, overwrite:"auto"}).delay((0.18*r2)+2); 
+							TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+							TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
+							TweenMax.to(tempArr[t].position, 1, { z:0, overwrite:"auto"}).delay((0.18*r2)+1); 
 						}
 					}
 				}
