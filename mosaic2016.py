@@ -44,6 +44,10 @@ def cardsTweenLite():
 def cardsTweenLite2():
 	return render_template('cardsTweenLite2.html')
 
+@app.route('/cardsTweenLoader')
+def cardsTweenLoader():
+	return render_template('cardsTweenLoader.html')
+
 def generateTiles():
 	#test generation via templates
 	# shoot for 9x9 at 64x64 tiles

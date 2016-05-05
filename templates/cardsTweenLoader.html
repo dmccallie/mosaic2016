@@ -29,6 +29,105 @@
 
 		THREE.Cache.enabled = true;
 
+		//set up webgl stuff
+		var scene = new THREE.Scene();
+		
+		var camera = new THREE.PerspectiveCamera( 750, 1000/1000, 0.1, 1000 );
+		camera.position.z = 28;
+
+		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas});
+		renderer.setSize( 1000, 1000 ); //fixme
+
+		var statsdiv = document.getElementById("stats");
+		stats = new Stats();
+		statsdiv.appendChild( stats.dom );
+
+		var mouse = new THREE.Vector2();
+		var raycaster = new THREE.Raycaster();
+
+		//globals for image layout, etc
+		var rows = 30;
+		var cols = 30;
+
+		//globals for card locations and stuff
+		var map = []; //2D array maps [row][col] to card object (parent of two sides)
+		var inv_map = {}; //hash maps parent card object to original row and col
+		var imageTextures = {}; //index the textures by name
+
+
+		//build the geometry of a card
+		var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+		var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
+		geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+
+		//this loader will keep track of asynch loading textures
+		var textureLoadingManager = new THREE.LoadingManager();
+		textureLoadingManager.onProgress = function ( item, loaded, total ) {
+			console.log( "loading manager: ", item, loaded, total );
+		};
+		textureLoadingManager.onLoad = function ( ) {
+			//console.log( "loading manager - on Load is DONE");
+			startWorld();  //stuff that has to wait for textures to be loaded
+		};
+
+		textureURLs = ["/static/IMG_2516-256.jpg","/static/CRW_6843-256.jpg","/static/IMG_3098-256.jpg" ];
+		
+		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
+
+		var startWorld = function() {
+			//console.log("DONE LOADING!");
+
+			//load the images and create textures, geomtries, meshes, and add to scene
+
+			map = createLotsofCards(rows, cols, geometry, geometryBack, 
+				imageTextures["/static/IMG_2516-256.jpg"], imageTextures["/static/CRW_6843-256.jpg"]);
+		
+			for (var r=0; r<rows; r++) {
+				for (var c=0; c<cols; c++) {
+					scene.add( map[r][c] );	
+				}
+			}
+
+			positionLotsofCards(map, rows, cols);
+
+			TweenLite.ticker.addEventListener("tick", render);
+
+		}
+
+
+		//var imageFront = new THREE.TextureLoader().load("/static/IMG_2516-256.jpg");
+		//var imageBack = new THREE.TextureLoader().load("/static/CRW_6843-256.jpg"); //flower
+		//var imageThird = new THREE.TextureLoader().load("/static/IMG_3098-256.jpg");
+		
+
+		function loadImageTextures(loadingManager, listOfURLs) {
+			//for each ULR, load the image into a texture, using the loading manager
+			//call whenDoneFunction when all textures are loaded
+
+			textureLoader = new THREE.TextureLoader(loadingManager);
+
+			for (var i=0; i<listOfURLs.length; i++) {
+				let imageURL = listOfURLs[i];  //creates local copy so that closure works!!
+				
+				textureLoader.load(imageURL, 
+					function(texture) {
+						imageTextures[imageURL] = texture;
+						//console.log("loaded texture ", imageURL);
+					},
+					function ( xhr ) {
+						console.log("xhr call = ", xhr);
+						if ( xhr.lengthComputable ) {
+							var percentComplete = xhr.loaded / xhr.total * 100;
+							console.log( imageURL, Math.round(percentComplete, 2) + ' % downloaded' );
+						}
+					},
+					function ( xhr ) {
+						console.log( 'An error happened' );
+					}
+				);
+			}
+		}
+
 		function createCardTwoMesh(geometry, geometryBack, frontMaterial, backMaterial) {
 			//returns a mesh, ready to be added to scene
 			//var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
@@ -48,10 +147,6 @@
 
 			return card;
 		}
-
-
-		var map = []; //2D array maps [row][col] to card object (parent of two sides)
-		var inv_map = {}; //hash maps parent card object to original row and col
 
 		function createLotsofCards(rows, cols, geometry, geometryBack, front, back) {
 			//cache the materials here, for now
@@ -95,53 +190,6 @@
 
 		}
 
-		var scene = new THREE.Scene();
-		var camera = new THREE.PerspectiveCamera( 750, 1000/1000, 0.1, 1000 );
-
-		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas});
-		//var canv = document.getElementById("rendercanvas");
-		renderer.setSize( 1000, 1000 );
-		//document.body.appendChild( renderer.domElement );
-
-		//canv.appendChild( renderer.domElement );
-		//var container = document.createElement( 'div' );
-		//document.body.appendChild( container );
-		var statsdiv = document.getElementById("stats");
-		stats = new Stats();
-		statsdiv.appendChild( stats.dom );
-
-		var mouse = new THREE.Vector2();
-		var raycaster = new THREE.Raycaster();
-
-
-		var imageFront = new THREE.TextureLoader().load("/static/IMG_2516-256.jpg");
-		var imageBack = new THREE.TextureLoader().load("/static/CRW_6843-256.jpg"); //flower
-		var imageThird = new THREE.TextureLoader().load("/static/IMG_3098-256.jpg");
-		
-		var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
-		var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
-		geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
-		
-		var rows = 30;
-		var cols = 30;
-		var map = createLotsofCards(rows, cols, geometry, geometryBack, imageFront, imageBack);
-		
-		for (var r=0; r<rows; r++) {
-			for (var c=0; c<cols; c++) {
-				scene.add( map[r][c] );	
-			}
-		}
-
-		positionLotsofCards(map, rows, cols);
-
-		camera.position.z = 28;
-
-		//var axisHelper = new THREE.AxisHelper( 5 );
-		//scene.add( axisHelper );
-
-
-
-		window.addEventListener( 'resize', onWindowResize, false );
 
 
 
@@ -250,11 +298,17 @@
 					//console.log(rc);
 					//var zmag = 2 - (r2*.125);
 					if (rc.col > c ) {
-						TweenMax.to(tempArr[t].rotation, 2.5, { y:"+=3.1415", overwrite:"auto"}).delay(0.11*r2); 
-						TweenMax.to(tempArr[t].position, 1.1, { z:1, 
-							ease: Power2.easeInOut, overwrite:"auto"}).delay(0.11*r2);
-						TweenMax.to(tempArr[t].position, .9, { z:0,  
-							ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
+						var tl = new TimelineLite({delay:0.1*r2});
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1, ease: Power2.easeOut }));
+						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
+						tl.play();
+
+						//TweenMax.to(tempArr[t].rotation, 2.5, { y:"+=3.1415", overwrite:"auto"}).delay(0.11*r2); 
+						//TweenMax.to(tempArr[t].position, 1.1, { z:1, 
+						//	ease: Power2.easeInOut, overwrite:"auto"}).delay(0.11*r2);
+						//TweenMax.to(tempArr[t].position, .9, { z:0,  
+						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 					} else {
 						TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
 						TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
@@ -323,7 +377,9 @@
 		}								
 
 
+		//window listeners
 
+		window.addEventListener( 'resize', onWindowResize, false );
 		function onWindowResize() {
 
 			camera.aspect = window.innerWidth / window.innerHeight;
@@ -379,8 +435,8 @@
 			TweenMax.to(startingTile.rotation, 5, { y:Math.PI*5, overwrite:"auto"}); 
 		});			
 
-		var win = renderer.domElement;
-		win.addEventListener( 'click', function ( event ) {
+
+		renderer.domElement.addEventListener( 'click', function ( event ) {
 			event.preventDefault();
 
 			//see http://jsfiddle.net/fek9ddg5/1/
@@ -428,11 +484,7 @@
 
 		};
 
-		//TweenLite.ticker.fps(50);
-		TweenLite.ticker.addEventListener("tick", render);
-
-		//animate();
-		//transform(cards, 4000);
+		//TweenLite.ticker.addEventListener("tick", render);
 
 		</script>
 	</body>
