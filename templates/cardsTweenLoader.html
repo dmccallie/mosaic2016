@@ -19,6 +19,7 @@
 		<button type="button" id="b1">One</button>
 		<button type="button" id="b2">Two</button>
 		<button type="button" id="b3">Three</button>
+		<button type="button" id="b4">Four</button>
 		<div id="stats" class="stats"></div>
 		<canvas id="rendercanvas"></canvas>
 		<script src="/static/three.js"></script>
@@ -34,6 +35,8 @@
 		
 		var camera = new THREE.PerspectiveCamera( 750, 1000/1000, 0.1, 1000 );
 		camera.position.z = 28;
+		camera.position.y = -13;
+		camera.rotation.x = .4;
 
 		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas});
 		renderer.setSize( 1000, 1000 ); //fixme
@@ -374,7 +377,49 @@
 			r = parseInt(nums[0]);
 			c = parseInt(nums[1]);
 			return [r,c];
-		}								
+		}
+
+		function doSplineTween(rStart, cStart, rEnd, cEnd, delay) {
+			var tileStart = map[rStart][cStart];
+			var tileEnd =   map[rEnd][cEnd];
+
+			spline = new THREE.CatmullRomCurve3([
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0),
+			    new THREE.Vector3(0, 4*Math.random(), 2*Math.random()),  //1
+			    new THREE.Vector3(8*Math.random(), 3*Math.random(), 5*Math.random()), //2
+			    new THREE.Vector3(0, -5*Math.random(), 6*Math.random()),  //3
+			    new THREE.Vector3(-5*Math.random(), 0, 3*Math.random()),  //4
+			    new THREE.Vector3(0, 6*Math.random(), 2*Math.random()),
+			    new THREE.Vector3(tileEnd.position.x, tileEnd.position.y, 0)
+			    ]);
+
+			let wrapper = {'tile':tileStart, 'curve': spline, curveLoc: 0};
+			TweenLite.to(wrapper, 10, { curveLoc:1, onUpdate: moveAlongSpline, onUpdateParams:[wrapper]}).delay(delay); 
+
+			//wrapper = {'tile':map[10][10], 'curve': spline, curveLoc: 0};
+			//TweenLite.to(wrapper, 10, { curveLoc:1, onUpdate: moveAlongSpline, onUpdateParams:[wrapper]} ).delay(2); 
+
+			function moveAlongSpline(tileWrapper) {
+				//console.log("tweening with", tileWrapper, tileWrapper.curveLoc);
+				var tile = tileWrapper.tile;
+				var curveLoc = tileWrapper.curveLoc;
+				var spline = tileWrapper.curve;
+				var tangent = new THREE.Vector3();
+				var axis = new THREE.Vector3();
+				var up = new THREE.Vector3(0, 1, 0);
+
+				var pt = spline.getPointAt(curveLoc);
+
+				tangent = spline.getTangentAt(curveLoc).normalize();
+				axis.crossVectors(up, tangent).normalize();
+				var radians = Math.acos(up.dot(tangent));
+
+				tile.position.copy(pt);
+				tile.quaternion.setFromAxisAngle(axis, radians);
+
+			}
+
+		}
 
 
 		//window listeners
@@ -435,6 +480,13 @@
 			TweenMax.to(startingTile.rotation, 5, { y:Math.PI*5, overwrite:"auto"}); 
 		});			
 
+		document.getElementById("b4").addEventListener("click", function(event) {
+			//spline tweens
+			for (var i=0; i<30; i++) {
+				var c = Math.floor(Math.random()* 30);
+				doSplineTween(i, c, c, i, i*0.2);
+			}
+		});
 
 		renderer.domElement.addEventListener( 'click', function ( event ) {
 			event.preventDefault();
