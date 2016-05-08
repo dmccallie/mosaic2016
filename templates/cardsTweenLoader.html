@@ -383,14 +383,22 @@
 			var tileStart = map[rStart][cStart];
 			var tileEnd =   map[rEnd][cEnd];
 
+			var midRow = Math.floor(rows / 2);
+			var midCol = Math.floor(cols / 2);
+			midTile = map[midRow][midCol];
+			var midX = midTile.position.x;
+			var midY = midTile.position.y;
+			var delX = tileStart.position.x - midX;
+			var delY = tileStart.position.y - midY;
+			var delZ = Math.sqrt((delX)**2 + (delY)**2);
+
 			spline = new THREE.CatmullRomCurve3([
-			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0),
-			    new THREE.Vector3(0, 4*Math.random(), 2*Math.random()),  //1
-			    new THREE.Vector3(8*Math.random(), 3*Math.random(), 5*Math.random()), //2
-			    new THREE.Vector3(0, -5*Math.random(), 6*Math.random()),  //3
-			    new THREE.Vector3(-5*Math.random(), 0, 3*Math.random()),  //4
-			    new THREE.Vector3(0, 6*Math.random(), 2*Math.random()),
-			    new THREE.Vector3(tileEnd.position.x, tileEnd.position.y, 0)
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0), //start point
+			    new THREE.Vector3(delX, 0 , delZ*0.3), 
+			    new THREE.Vector3(0, -delY, delZ*0.6),
+			    new THREE.Vector3(-delX, 0, delZ*1.0),
+			    new THREE.Vector3(0, delY , delZ*0.6),
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
 			    ]);
 
 			let wrapper = {'tile':tileStart, 'curve': spline, curveLoc: 0};
@@ -406,7 +414,7 @@
 				var spline = tileWrapper.curve;
 				var tangent = new THREE.Vector3();
 				var axis = new THREE.Vector3();
-				var up = new THREE.Vector3(0, 1, 0);
+				var up = new THREE.Vector3(0, 0, 1);
 
 				var pt = spline.getPointAt(curveLoc);
 
@@ -474,7 +482,7 @@
 				var tempArr = Array.from(rings[r]);
 				for (var t=0; t<tempArr.length; t++) {
 					//console.log("rotation = ", rings[r][t].rotation);
-					TweenMax.to(tempArr[t].rotation, 2, { y:Math.PI, overwrite:"auto"}).delay(0.2*r); 
+					TweenMax.to(tempArr[t].rotation, 2, { y:Math.PI, overwrite:"auto"}).delay(0.1*r); 
 				}
 			}
 			TweenMax.to(startingTile.rotation, 5, { y:Math.PI*5, overwrite:"auto"}); 
@@ -482,10 +490,25 @@
 
 		document.getElementById("b4").addEventListener("click", function(event) {
 			//spline tweens
-			for (var i=0; i<30; i++) {
-				var c = Math.floor(Math.random()* 30);
-				doSplineTween(i, c, c, i, i*0.2);
+			//for (var i=0; i<15; i++) {
+			//	doSplineTween(15-i,15+i,0,0, i*0.2);
+			//}
+
+			for (var i=0; i<100; i++) {
+				var r = Math.floor(Math.random() * 15);
+				var c = Math.floor(Math.random() * 15);
+				doSplineTween(15-r,15+c,0,0, i*0.02)
 			}
+			/*
+			doSplineTween(15-10,15+10,20,20,0);
+			doSplineTween(15+10,15+10,20,20,1);
+			doSplineTween(15-10,15-10,20,20,2);
+			doSplineTween(15+10,15-10,20,20,3);
+			doSplineTween(15-5,15+5,20,20,0);
+			doSplineTween(15+5,15+5,20,20,1);
+			doSplineTween(15-5,15-5,20,20,2);
+			doSplineTween(15+5,15-5,20,20,3);				
+			*/
 		});
 
 		renderer.domElement.addEventListener( 'click', function ( event ) {
