@@ -52,6 +52,10 @@
 		var rows = 30;
 		var cols = 30;
 
+		var white = new THREE.Color(0xffffff);
+		var black = new THREE.Color(0x000000);
+		var hilightColor = new THREE.Color(1,0,0);
+
 		//globals for card locations and stuff
 		var map = []; //2D array maps [row][col] to card object (parent of two sides)
 		var inv_map = {}; //hash maps parent card object to original row and col
@@ -386,18 +390,21 @@
 			var midRow = Math.floor(rows / 2);
 			var midCol = Math.floor(cols / 2);
 			midTile = map[midRow][midCol];
+			curEdges = new THREE.EdgesHelper(midTile.children[0], 0x00ff00);
+			scene.add( curEdges);
 			var midX = midTile.position.x;
 			var midY = midTile.position.y;
 			var delX = tileStart.position.x - midX;
 			var delY = tileStart.position.y - midY;
-			var delZ = Math.sqrt((delX)**2 + (delY)**2);
+			var rad = Math.sqrt( Math.pow(delX,2) + Math.pow(delY,2) );
+			var delZ = rad/2.0;
 
 			spline = new THREE.CatmullRomCurve3([
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0), //start point
-			    new THREE.Vector3(delX, 0 , delZ*0.3), 
-			    new THREE.Vector3(0, -delY, delZ*0.6),
-			    new THREE.Vector3(-delX, 0, delZ*1.0),
-			    new THREE.Vector3(0, delY , delZ*0.6),
+			    new THREE.Vector3(rad, 0 , delZ*0.3), 
+			    new THREE.Vector3(0, -rad, delZ*0.6),
+			    new THREE.Vector3(-rad, 0, delZ*1.0),
+			    new THREE.Vector3(0, rad , delZ*0.6),
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
 			    ]);
 
@@ -490,15 +497,15 @@
 
 		document.getElementById("b4").addEventListener("click", function(event) {
 			//spline tweens
-			//for (var i=0; i<15; i++) {
-			//	doSplineTween(15-i,15+i,0,0, i*0.2);
-			//}
-
-			for (var i=0; i<100; i++) {
-				var r = Math.floor(Math.random() * 15);
-				var c = Math.floor(Math.random() * 15);
-				doSplineTween(15-r,15+c,0,0, i*0.02)
+			for (var i=0; i<15; i++) {
+				doSplineTween(8,15+i,0,0, i*0.2);
 			}
+
+			//for (var i=0; i<100; i++) {
+			//	var r = Math.floor(Math.random() * 15);
+			//	var c = Math.floor(Math.random() * 15);
+			//	doSplineTween(15-r,15+c,0,0, i*0.02)
+			//}
 			/*
 			doSplineTween(15-10,15+10,20,20,0);
 			doSplineTween(15+10,15+10,20,20,1);
@@ -534,9 +541,7 @@
 
 
 		var lastObjectHit = null;
-		var white = new THREE.Color(0xffffff);
-		var black = new THREE.Color(0x000000);
-		var hilightColor = new THREE.Color(1,0,0);
+
 
 		function handleMouseClick(mouse) {
 			
