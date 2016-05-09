@@ -211,8 +211,10 @@
 					if ( (r % 2 == 0) && (c % 2 ==0) ) { 
 						//start flip
 						TweenMax.to(aCard.rotation, duration*2, { x: Math.PI} );
+						TweenMax.to(aCard.position, duration*2, { z:1.8 });
 						//que delayed return
 						TweenMax.to(aCard.rotation, duration, { x:0 } ).delay(duration*2);
+						TweenMax.to(aCard.position, duration, { z:0 }).delay(duration*2);						
 
 					} else {
 						TweenMax.to(aCard.rotation, duration*2, { y: Math.PI} ).delay(1);
@@ -306,7 +308,7 @@
 					//var zmag = 2 - (r2*.125);
 					if (rc.col > c ) {
 						var tl = new TimelineLite({delay:0.1*r2});
-						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1, ease: Power2.easeOut }));
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
 						tl.play();
@@ -317,9 +319,15 @@
 						//TweenMax.to(tempArr[t].position, .9, { z:0,  
 						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 					} else {
-						TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
-						TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
-						TweenMax.to(tempArr[t].position, 1, { z:0, overwrite:"auto"}).delay((0.18*r2)+1); 
+						var tl = new TimelineLite({delay:0.1*r2});
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
+						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
+						tl.play();
+
+						//TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+						//TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
+						//TweenMax.to(tempArr[t].position, 1, { z:0, overwrite:"auto"}).delay((0.18*r2)+1); 
 					}
 				}
 			}
@@ -383,33 +391,165 @@
 			return [r,c];
 		}
 
-		function doSplineTween(rStart, cStart, rEnd, cEnd, delay) {
+		function findLineBetweenCards(rowStart, colStart, rowEnd, colEnd) {
+			//from rosettacode.org - Bresenham's line drawing algorithm
+			//returns an array of card address tuples [[r,c], [r,c]...]
+			var x0 = colStart; 
+			var y0 = rowStart;
+			var x1 = colEnd;
+			var y1 = rowEnd;
+  			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  			var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; 
+  			var err = (dx>dy ? dx : -dy)/2;
+ 
+ 			cardsCoords = [];
+
+  			while (true) {
+    			cardsCoords.push([y0, x0]);
+    			if (x0 === x1 && y0 === y1) break;
+    			var e2 = err;
+    			if (e2 > -dx) { err -= dy; x0 += sx; }
+    			if (e2 < dy) { err += dx; y0 += sy; }
+  			}
+  			return cardsCoords;
+		}
+
+		function doSpiral360() {
+			var midRow = Math.floor(rows / 2);
+			var midCol = Math.floor(cols / 2);
+			var r, c;
+			var cardsInLine = [];
+			var i = 0, j = 0;
+			var allLines = [];
+
+			function filterDups(fullList, newLine) {
+				//eliminate cards already in the fullList (due to low-rez lines)
+				//returns the cleaned up list
+				//wish I could use sets, but can't due to "===" problem
+				var filteredLine = [];
+				for (var l=0; l<newLine.length; l++) {
+					var row = newLine[l][0];
+					var col = newLine[l][1];
+					var found = false;
+					for (var fl=0; fl<fullList.length; fl++) {
+						if (row == fullList[fl][0] && col == fullList[fl][1]) {
+							found = true;
+							//console.log("dup at ", row, col);	
+							break;
+						}
+					}
+					if (!found) filteredLine.push(newLine[l]);
+				}
+				//update the fullList to know about new line
+				for (l=0; l<filteredLine.length; l++) fullList.push(filteredLine[l]);
+				return filteredLine;
+			}
+
+			//quad 1
+			allLines = []; i = 0; cardsInLine = [];
+			for (c=midCol; c<cols; c++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,0,c));
+			}
+			for (r=0; r<midRow; r++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,cols-1));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+			//quad 2
+			i = 0; cardsInLine = [];
+			for (r=midRow; r<rows; r++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,cols-1));
+			}
+			for (c=cols-1; c>=midCol; c--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,rows-1,c));
+			}
+
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}			
+
+			//quad3
+			i = 0; cardsInLine = [];
+			for (c=midCol-1; c>=0; c--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,rows-1,c));
+			}
+			for (r=rows-1; r>midCol; r--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,0));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+			//quad4
+			i = 0; cardsInLine = [];
+			for (r=midRow; r>0; r--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,0));
+			}
+			for (c=0; c<midCol; c++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,0,c));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+		}
+
+		function doSplineTween360(rStart, cStart, delay) {
+			//goes all the way around and back to start
 			var tileStart = map[rStart][cStart];
-			var tileEnd =   map[rEnd][cEnd];
+			//var tileEnd =   map[rEnd][cEnd];
 
 			var midRow = Math.floor(rows / 2);
 			var midCol = Math.floor(cols / 2);
 			midTile = map[midRow][midCol];
-			curEdges = new THREE.EdgesHelper(midTile.children[0], 0x00ff00);
-			scene.add( curEdges);
+			//curEdges = new THREE.EdgesHelper(midTile.children[0], 0x00ff00);
+			//scene.add( curEdges);
 			var midX = midTile.position.x;
 			var midY = midTile.position.y;
 			var delX = tileStart.position.x - midX;
 			var delY = tileStart.position.y - midY;
 			var rad = Math.sqrt( Math.pow(delX,2) + Math.pow(delY,2) );
-			var delZ = rad/2.0;
+			var delZ = rad/2;
+			
+
+			var pt = [];
+
+			if        (delX > 0 && delY > 0) {
+				pts = [[rad,0], [0,-rad], [-rad,0], [0,rad]];
+			} else if (delX > 0 && delY < 0) {
+				pts = [[0,-rad], [-rad,0], [0,rad], [rad,0]];
+			} else if (delX < 0 && delY < 0) {
+				pts = [[-rad,0], [0,rad], [rad,0], [0,-rad]];
+			} else {
+				pts = [[0,rad], [rad,0], [0,-rad], [-rad,0]];
+			}
 
 			spline = new THREE.CatmullRomCurve3([
-			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0), //start point
-			    new THREE.Vector3(rad, 0 , delZ*0.3), 
-			    new THREE.Vector3(0, -rad, delZ*0.6),
-			    new THREE.Vector3(-rad, 0, delZ*1.0),
-			    new THREE.Vector3(0, rad , delZ*0.6),
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1), //start point
+			    new THREE.Vector3(pts[0][0], pts[0][1] , delZ*0.3), 
+			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*0.6),
+			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*1.0),
+			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*0.7),
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
 			    ]);
 
 			let wrapper = {'tile':tileStart, 'curve': spline, curveLoc: 0};
-			TweenLite.to(wrapper, 10, { curveLoc:1, onUpdate: moveAlongSpline, onUpdateParams:[wrapper]}).delay(delay); 
+			TweenLite.to(wrapper, 8, { curveLoc:1, onUpdate: moveAlongSpline, 
+				onUpdateParams:[wrapper], ease: Circ}).delay(delay); 
 
 			//wrapper = {'tile':map[10][10], 'curve': spline, curveLoc: 0};
 			//TweenLite.to(wrapper, 10, { curveLoc:1, onUpdate: moveAlongSpline, onUpdateParams:[wrapper]} ).delay(2); 
@@ -425,13 +565,29 @@
 
 				var pt = spline.getPointAt(curveLoc);
 
-				tangent = spline.getTangentAt(curveLoc).normalize();
-				axis.crossVectors(up, tangent).normalize();
-				var radians = Math.acos(up.dot(tangent));
+				//tangent = spline.getTangentAt(curveLoc).normalize();
+				//axis.crossVectors(up, tangent).normalize();
+				//var radians = Math.acos(up.dot(tangent));
 
 				tile.position.copy(pt);
-				tile.quaternion.setFromAxisAngle(axis, radians);
+				//tile.rotation.y = curveLoc*3.14159;
+				tile.rotation.x = curveLoc*3.14159;	
+				tile.rotation.z = curveLoc*3.14159;			
+				//tile.quaternion.setFromAxisAngle(axis, radians);
 
+				/*
+				scale = new THREE.Vector3();
+				if (curveLoc < 0.6) {
+					scale.x = (curveLoc / 0.6) + 1;
+					scale.y = (curveLoc / 0.6) + 1;
+					tile.scale = scale;
+				} else {
+					scale.x = (2.0 / 0.6 - 1.0) * (curveLoc - 1);
+					scale.y = (2.0 / 0.6 - 1.0) * (curveLoc - 1);
+					tile.scale = scale;
+				}
+				tile.matrixWorldNeedsUpdate = true;
+				*/
 			}
 
 		}
@@ -497,25 +653,7 @@
 
 		document.getElementById("b4").addEventListener("click", function(event) {
 			//spline tweens
-			for (var i=0; i<15; i++) {
-				doSplineTween(8,15+i,0,0, i*0.2);
-			}
-
-			//for (var i=0; i<100; i++) {
-			//	var r = Math.floor(Math.random() * 15);
-			//	var c = Math.floor(Math.random() * 15);
-			//	doSplineTween(15-r,15+c,0,0, i*0.02)
-			//}
-			/*
-			doSplineTween(15-10,15+10,20,20,0);
-			doSplineTween(15+10,15+10,20,20,1);
-			doSplineTween(15-10,15-10,20,20,2);
-			doSplineTween(15+10,15-10,20,20,3);
-			doSplineTween(15-5,15+5,20,20,0);
-			doSplineTween(15+5,15+5,20,20,1);
-			doSplineTween(15-5,15-5,20,20,2);
-			doSplineTween(15+5,15-5,20,20,3);				
-			*/
+			doSpiral360();
 		});
 
 		renderer.domElement.addEventListener( 'click', function ( event ) {
