@@ -19,7 +19,8 @@
 		<button type="button" id="b1">One</button>
 		<button type="button" id="b2">Two</button>
 		<button type="button" id="b3">Three</button>
-		<button type="button" id="b4">Four</button>
+		<button type="button" id="b4">Pinwheel</button>
+		<button type="button" id="b5">Texture</button>
 		<div id="stats" class="stats"></div>
 		<canvas id="rendercanvas"></canvas>
 		<script src="/static/three.js"></script>
@@ -109,7 +110,6 @@
 
 		function loadImageTextures(loadingManager, listOfURLs) {
 			//for each ULR, load the image into a texture, using the loading manager
-			//call whenDoneFunction when all textures are loaded
 
 			textureLoader = new THREE.TextureLoader(loadingManager);
 
@@ -160,18 +160,18 @@
 			var faceMaterialFront = [];
 			var faceMaterialBack = [];
 
-			for (var i=0; i<1; i++) {
+			for (var i=0; i<rows*cols; i++) {
 				faceMaterialFront[i] = new THREE.MeshBasicMaterial( { map:front, side:THREE.FrontSide } );
 				faceMaterialBack[i] =  new THREE.MeshBasicMaterial( { map:back, side:THREE.FrontSide   } );
 			}	
-			//var count = 0;
+			var count = 0;
 			for (var row=0; row<rows; row++) {
 				map[row] = [];
 				for (col=0; col<cols; col++) {
-					var card = createCardTwoMesh(geometry, geometryBack, faceMaterialFront[0], faceMaterialBack[0]);
+					var card = createCardTwoMesh(geometry, geometryBack, faceMaterialFront[count], faceMaterialBack[count]);
 					map[row][col] = card;
 					inv_map[card.id] = {'row': row, 'col':col};
-					//count++;
+					count++;
 				}
 			}
 			return map;
@@ -185,7 +185,27 @@
 					map[r][c].position.z = 0;
 				}
 			}
-		}			
+		}	
+
+		function changeFaceOfCard(newImageTexture, card, faceName) {
+
+			for (i=0; i<2; i++) {
+				var face = card.children[i];
+				if (faceName.localeCompare( face.userData["side"] ) == 0) { //fixme - error checks!
+					//card.remove(card.children[i]);
+					//var geometry2 = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+					//geometry2.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+					//var mf = new THREE.Mesh(geometry2,faceMaterialBack);
+					//mf.userData = {"side": "back"};
+					//card.add(mf);
+					face.material.map = newImageTexture;
+					face.material.needsUpdate = true;
+					return;
+				}
+				console.log("no match for facename");
+			}
+			return;
+		}				
 
 		function updateCards(cards) {
 			for (var i=0; i<cards.length; i++) {
@@ -196,8 +216,6 @@
 			}
 
 		}
-
-
 
 
 		function transform( map, rows, cols, duration ) {
@@ -654,6 +672,23 @@
 		document.getElementById("b4").addEventListener("click", function(event) {
 			//spline tweens
 			doSpiral360();
+		});
+
+		document.getElementById("b5").addEventListener("click", function(event) {
+			//test change image textures on the fly
+			changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			/*
+			for (var r=0; r<rows; r++) {
+				for (var c=0; c<cols; c++) {
+					if ((r % 2 == 0) && (c % 2 == 0) ) {
+						var card = map[r][c];
+						changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], card, "back");
+						changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], card, "front");
+					}
+				}
+			}
+			*/
+				
 		});
 
 		renderer.domElement.addEventListener( 'click', function ( event ) {
