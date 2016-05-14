@@ -25,7 +25,7 @@
 		<canvas id="rendercanvas"></canvas>
 		<script src="/static/three.js"></script>
 		<script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.2/TweenMax.min.js"></script>
-		<script src="/static/TrackballControls.js"></script>
+		<script src="/static/OrbitControls.js"></script>
 		<script src="/static/stats.min.js"></script>
 		<script>
 
@@ -41,6 +41,8 @@
 
 		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas});
 		renderer.setSize( 1000, 1000 ); //fixme
+
+		var orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
 
 		var statsdiv = document.getElementById("stats");
 		stats = new Stats();
@@ -64,22 +66,27 @@
 
 
 		//build the geometry of a card
-		var geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1);
-		var geometryBack = new THREE.PlaneBufferGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
+		var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+		var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
 		geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
 
 		//this loader will keep track of asynch loading textures
 		var textureLoadingManager = new THREE.LoadingManager();
-		textureLoadingManager.onProgress = function ( item, loaded, total ) {
-			console.log( "loading manager: ", item, loaded, total );
-		};
+		//textureLoadingManager.onProgress = function ( item, loaded, total ) {
+		//	console.log( "loading manager: ", item, loaded, total );
+		//};
 		textureLoadingManager.onLoad = function ( ) {
 			//console.log( "loading manager - on Load is DONE");
 			startWorld();  //stuff that has to wait for textures to be loaded
 		};
 
-		textureURLs = ["/static/IMG_2516-256.jpg","/static/CRW_6843-256.jpg","/static/IMG_3098-256.jpg", "/static/spritesheet-1.png" ];
-		
+		//textureURLs = ["/static/IMG_2516-256.jpg","/static/CRW_6843-256.jpg","/static/IMG_3098-256.jpg", "/static/square4sprites.png" ];
+		textureURLs = [];
+		for (var i=0; i<rows*cols; i++) {
+			textureURLs.push("/static/tiles/tile" + "-red-"   + i.toString() + ".png");
+			textureURLs.push("/static/tiles/tile" + "-black-" + i.toString() + ".png");
+		}
+
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
 
 		var startWorld = function() {
@@ -90,7 +97,7 @@
 			//map = createLotsofCards(rows, cols, geometry, geometryBack, 
 			//	imageTextures["/static/IMG_2516-256.jpg"], imageTextures["/static/CRW_6843-256.jpg"]);
 
-			map = createLotsofCardsTEST(rows, cols, geometry, geometryBack, imageTextures["/static/spritesheet-1.png"]);
+			map = createLotsofCardsTEST(rows, cols, geometry, geometryBack, imageTextures);
 
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
@@ -179,31 +186,34 @@
 			return map;
 		}
 
-		function createLotsofCardsTEST(rows, cols, geometry, geometryBack, multiTexture) {
+		function createLotsofCardsTEST(rows, cols, geometry, geometryBack, textures) {
 			//cache the materials here, for now
 			var faceMaterialFront = [];
-			
 			var faceMaterialBack = [];
 
 			//multiTexture - set RepeatWrapping
-			var tilesHorizontal = 6;
-			var tilesVertical = 1;
-			multiTexture.wrapS = multiTexture.wrapT = THREE.RepeatWrapping;
-			multiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
+			//var tilesHorizontal = 2;
+			//var tilesVertical = 2;
+			//multiTexture.wrapS = multiTexture.wrapT = THREE.RepeatWrapping;
+			//multiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
+			//multiTexture.offset.x = 1; //(i / tilesHorizontal);
+			//multiTexture.offset.y = 1 ;
 
 			//load the multitexture
-			for (var i=0; i<6; i++) {
-				var copyMultiTexture = new THREE.Texture();
-				copyMultiTexture.clone(multiTexture);
-				copyMultiTexture.needsUpdate = true;
-				copyMultiTexture.wrapS = copyMultiTexture.wrapT = THREE.RepeatWrapping;
-				copyMultiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
-				copyMultiTexture.offset.x = (i / tilesHorizontal);
-				copyMultiTexture.offset.y = 0;
+			for (var i=0; i<rows*cols; i++) {
+				//var copyMultiTexture = new THREE.Texture();
+				//copyMultiTexture.clone(multiTexture);
 				//copyMultiTexture.needsUpdate = true;
+				//copyMultiTexture.wrapS = copyMultiTexture.wrapT = THREE.RepeatWrapping;
+				//copyMultiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
+				//copyMultiTexture.offset.x = (i / tilesHorizontal);
+				//copyMultiTexture.offset.y = 0;
+				//copyMultiTexture.needsUpdate = true;
+				var frontTexName = "/static/tiles/tile" + "-red-"    + i.toString() + ".png";
+				var backTexName = "/static/tiles/tile" + "-black-"   + i.toString() + ".png";
 
-				faceMaterialFront[i] = new THREE.MeshBasicMaterial( { map:copyMultiTexture, side:THREE.FrontSide } );
-				faceMaterialBack[i] =  new THREE.MeshBasicMaterial( { map:copyMultiTexture, side:THREE.FrontSide   } );
+				faceMaterialFront[i] = new THREE.MeshBasicMaterial( { map:textures[frontTexName], side:THREE.FrontSide } );
+				faceMaterialBack[i] =  new THREE.MeshBasicMaterial( { map:textures[backTexName], side:THREE.FrontSide   } );
 			}
 
 			var count = 0;
@@ -214,7 +224,6 @@
 					map[row][col] = card;
 					inv_map[card.id] = {'row': row, 'col':col};
 					count++;
-					if (count > 5) count = 0;
 				}
 			}
 			return map;

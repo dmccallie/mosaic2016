@@ -104,6 +104,6 @@ def line(x0, y0, x1, y1):
 	points.append((x,y))
 
 if __name__ == '__main__':
-	app.debug = True
+	#app.debug = True
 	app.run()
 
