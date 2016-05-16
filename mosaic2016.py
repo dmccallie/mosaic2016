@@ -48,6 +48,14 @@ def cardsTweenLite2():
 def cardsTweenLoader():
 	return render_template('cardsTweenLoader.html')
 
+@app.route('/testUVmanipulation')
+def testUVmanipulation():
+	return render_template('testUVmanipulation.html')
+
+@app.route('/cardsTweenSlabsUV')
+def cardsTweenSlabsUV():
+	return render_template('cardsTweenSlabsUV.html')
+
 def generateTiles():
 	#test generation via templates
 	# shoot for 9x9 at 64x64 tiles

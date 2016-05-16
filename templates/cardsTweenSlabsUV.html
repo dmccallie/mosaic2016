@@ -61,8 +61,9 @@
 
 		//globals for card locations and stuff
 		var map = []; //2D array maps [row][col] to card object (parent of two sides)
-		var inv_map = {}; //hash maps parent card object to original row and col
-		var imageTextures = {}; //index the textures by name
+		var inv_map = new Map(); //hash maps parent card object to original row and col
+		var slabTextures = new Map(); //index the textures by name
+		var slabMaterials = new Map(); //index the materials for each slab by name
 
 
 		//build the geometry of a card
@@ -72,51 +73,30 @@
 
 		//this loader will keep track of asynch loading textures
 		var textureLoadingManager = new THREE.LoadingManager();
-		//textureLoadingManager.onProgress = function ( item, loaded, total ) {
-		//	console.log( "loading manager: ", item, loaded, total );
-		//};
+
 		textureLoadingManager.onLoad = function ( ) {
-			//console.log( "loading manager - on Load is DONE");
 			startWorld();  //stuff that has to wait for textures to be loaded
 		};
 
-		textureURLs = ["/static/IMG_2516-256.jpg","/static/CRW_6843-256.jpg","/static/IMG_3098-256.jpg", "/static/square4sprites.png" ];
+		textureURLs = [];
 		
-		//textureURLs = [];
-		//for (var i=0; i<rows*cols; i++) {
-		//	textureURLs.push("/static/tiles/tile" + "-red-"   + i.toString() + ".png");
-		//	textureURLs.push("/static/tiles/tile" + "-black-" + i.toString() + ".png");
-		//}
+		for (var i=0; i<4; i++) {
+			textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
+			textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
+		}
 
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
 
 		var startWorld = function() {
 			//console.log("DONE LOADING!");
 
-			//load the images and create textures, geomtries, meshes, and add to scene
-
-			map = createLotsofCards(rows, cols, geometry, geometryBack, 
-				imageTextures["/static/IMG_2516-256.jpg"], imageTextures["/static/CRW_6843-256.jpg"]);
-
-			//map = createLotsofCardsTEST(rows, cols, geometry, geometryBack, imageTextures);
-
-			for (var r=0; r<rows; r++) {
-				for (var c=0; c<cols; c++) {
-					scene.add( map[r][c] );	
-				}
-			}
+			createLotsOfCardsFromSlabsUV();
 
 			positionLotsofCards(map, rows, cols);
 
 			TweenLite.ticker.addEventListener("tick", render);
 
 		}
-
-
-		//var imageFront = new THREE.TextureLoader().load("/static/IMG_2516-256.jpg");
-		//var imageBack = new THREE.TextureLoader().load("/static/CRW_6843-256.jpg"); //flower
-		//var imageThird = new THREE.TextureLoader().load("/static/IMG_3098-256.jpg");
-		
 
 		function loadImageTextures(loadingManager, listOfURLs) {
 			//for each ULR, load the image into a texture, using the loading manager
@@ -128,7 +108,7 @@
 				
 				textureLoader.load(imageURL, 
 					function(texture) {
-						imageTextures[imageURL] = texture;
+						slabTextures[imageURL] = texture;
 						//console.log("loaded texture ", imageURL);
 					},
 					function ( xhr ) {
@@ -145,91 +125,84 @@
 			}
 		}
 
-		function createCardTwoMesh(geometry, geometryBack, frontMaterial, backMaterial) {
-			//returns a mesh, ready to be added to scene
-			//var faceMaterialFront = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
-			//var faceMaterialBack =  new THREE.MeshBasicMaterial( { map:backTexture, side:THREE.FrontSide   } );
-			//var faceMaterialFront = new THREE.MeshBasicMaterial( { color:"red" } );
-			//var faceMaterialBack =  new THREE.MeshBasicMaterial( { color: "blue"   } );
+		function createLotsOfCardsFromSlabsUV() {
+			//use the preloaded slabs, and create two-sided cards, red and black
+			//just a scaling test for now
+			//assumes all textures have been loaded, but not yet converted to Materials, so do that first.
+			//will have to be re-worked for real code
 
-			var card = new THREE.Object3D();
+			//create cache of materials, one per slab
 
-			var mf = new THREE.Mesh(geometry, frontMaterial);
-			mf.userData = {"side": "front"};
-			card.add(mf);
+			var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
 
-			var mb = new THREE.Mesh(geometryBack, backMaterial);
-			mb.userData = {"side": "back"};
-			card.add(mb);
-
-			return card;
-		}
-
-		function createLotsofCards(rows, cols, geometry, geometryBack, frontTexture, backTexture) {
-			//cache the materials here, for now
-			var faceMaterialFront = [];
-			var faceMaterialBack = [];
-
-			for (var i=0; i<rows*cols; i++) {
-				faceMaterialFront[i] = new THREE.MeshBasicMaterial( { map:frontTexture, side:THREE.FrontSide } );
-				faceMaterialBack[i] =  new THREE.MeshBasicMaterial( { map:backTexture,  side:THREE.FrontSide   } );
+			for (var entry in slabTextures) {
+				slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.FrontSide});
 			}
 
-			var count = 0;
 			for (var row=0; row<rows; row++) {
 				map[row] = [];
-				for (col=0; col<cols; col++) {
-					var card = createCardTwoMesh(geometry, geometryBack, faceMaterialFront[count], faceMaterialBack[count]);
+				for (var col=0; col<cols; col++) {
+					var counter = row*cols + col;
+					var slabNumber = Math.floor(counter / 256);
+					var slabOffset = counter - (slabNumber * 256);
+					var slabRow = Math.floor(slabOffset / 16);
+					var slabCol = slabOffset - (slabRow * 16);
+
+					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
+					setPlaneGeometryUVstoSlabRowCol(frontGeometry, slabRow, slabCol);
+					frontGeometry.uvsNeedUpdate = true;
+
+					var backGeometry  = new THREE.PlaneGeometry( 0.5, 0.5);
+					backGeometry.applyMatrix( flipMatrix );
+					setPlaneGeometryUVstoSlabRowCol(backGeometry, slabRow, slabCol);
+					backGeometry.uvsNeedUpdate = true;		
+
+					var slabRedName  = "/static/tiles/slab"  + "-red-"    + slabNumber.toString() + ".png";
+					var slabBlackName = "/static/tiles/slab" + "-black-"  + slabNumber.toString() + ".png";
+
+					var slabRedMaterial = slabMaterials[slabRedName];
+					var frontMesh = new THREE.Mesh(frontGeometry, slabRedMaterial);
+
+					var slabBlackMaterial = slabMaterials[slabBlackName];
+					var backMesh = new THREE.Mesh(backGeometry, slabBlackMaterial);
+
+					var card = new THREE.Object3D();
+					frontMesh.userData = {"side": "front"};
+					card.add(frontMesh);
+
+					backMesh.userData = {"side": "back"};
+					card.add(backMesh);
+					
 					map[row][col] = card;
 					inv_map[card.id] = {'row': row, 'col':col};
-					count++;
+					
+					scene.add(card);
 				}
 			}
-			return map;
 		}
 
-		function createLotsofCardsTEST(rows, cols, geometry, geometryBack, textures) {
-			//cache the materials here, for now
-			var faceMaterialFront = [];
-			var faceMaterialBack = [];
+		function setPlaneGeometryUVstoSlabRowCol(geometry, row, col) {
+			//set the UV offsets for this PlaneGeometry to row, col of the 16x16 slab
+			//only works with PlaneGeometry! Not with BufferedGeometry
+			//console.log("setting UV for:", geometry);
+			var slabEdgeCount = 16;  //16x16x256 = 2048 x 2048
+			var chunkOffset = 1.0 / slabEdgeCount;
 
-			//multiTexture - set RepeatWrapping
-			//var tilesHorizontal = 2;
-			//var tilesVertical = 2;
-			//multiTexture.wrapS = multiTexture.wrapT = THREE.RepeatWrapping;
-			//multiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
-			//multiTexture.offset.x = 1; //(i / tilesHorizontal);
-			//multiTexture.offset.y = 1 ;
+			var ll = new THREE.Vector2( col    * chunkOffset,  (slabEdgeCount-row-1)  * chunkOffset );  //u,v = x, y, where 1,1 = upper right 
+			var ur = new THREE.Vector2((col+1) * chunkOffset,  (slabEdgeCount-row )   * chunkOffset );
+			var lr = new THREE.Vector2((col+1) * chunkOffset,  (slabEdgeCount-row-1)  * chunkOffset );
+			var ul = new THREE.Vector2( col    * chunkOffset,  (slabEdgeCount-row )   * chunkOffset );
 
-			//load the multitexture
-			for (var i=0; i<rows*cols; i++) {
-				//var copyMultiTexture = new THREE.Texture();
-				//copyMultiTexture.clone(multiTexture);
-				//copyMultiTexture.needsUpdate = true;
-				//copyMultiTexture.wrapS = copyMultiTexture.wrapT = THREE.RepeatWrapping;
-				//copyMultiTexture.repeat.set( 1 / tilesHorizontal, 1 / tilesVertical );
-				//copyMultiTexture.offset.x = (i / tilesHorizontal);
-				//copyMultiTexture.offset.y = 0;
-				//copyMultiTexture.needsUpdate = true;
-				var frontTexName = "/static/tiles/tile" + "-red-"    + i.toString() + ".png";
-				var backTexName = "/static/tiles/tile" + "-black-"   + i.toString() + ".png";
+			//geometry.faceVertexUvs[layer#][face#][vertex#] = UV-vec2
+			geometry.faceVertexUvs[0][0][0] = ul;  //first vertex is v0 is plane's UL corner
+			geometry.faceVertexUvs[0][0][1] = ll;  //second vertex is V2 = LL corner
+			geometry.faceVertexUvs[0][0][2] = ur;  //third vertex is v1 = UR	corner			
 
-				faceMaterialFront[i] = new THREE.MeshBasicMaterial( { map:textures[frontTexName], side:THREE.FrontSide } );
-				faceMaterialBack[i] =  new THREE.MeshBasicMaterial( { map:textures[backTexName], side:THREE.FrontSide   } );
-			}
+			geometry.faceVertexUvs[0][1][0] = ll;  //first vertex is LL
+			geometry.faceVertexUvs[0][1][1] = lr;  //second vertex is LR
+			geometry.faceVertexUvs[0][1][2] = ur;  //third vertex is UR
 
-			var count = 0;
-			for (var row=0; row<rows; row++) {
-				map[row] = [];
-				for (col=0; col<cols; col++) {
-					var card = createCardTwoMesh(geometry, geometryBack, faceMaterialFront[count], faceMaterialBack[count]);
-					map[row][col] = card;
-					inv_map[card.id] = {'row': row, 'col':col};
-					count++;
-				}
-			}
-			return map;
-		}		
+		}
 
 		function positionLotsofCards(map, rows, cols) {
 			for (var r=0; r<rows; r++) {
