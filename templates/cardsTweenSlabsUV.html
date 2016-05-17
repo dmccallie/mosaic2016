@@ -83,6 +83,7 @@
 		for (var i=0; i<4; i++) {
 			textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
 			textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
+			textureURLs.push("/static/tiles/slab" + "-green-" + i.toString() + ".png");		
 		}
 
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
@@ -154,6 +155,8 @@
 
 					var backGeometry  = new THREE.PlaneGeometry( 0.5, 0.5);
 					backGeometry.applyMatrix( flipMatrix );
+
+					//need to make this a function of "flipC"
 					setPlaneGeometryUVstoSlabRowCol(backGeometry, slabRow, slabCol);
 					backGeometry.uvsNeedUpdate = true;		
 
@@ -210,6 +213,28 @@
 					map[r][c].position.x = -7 + (c * 0.45);
 					map[r][c].position.y = 6.5 - (r * 0.45);
 					map[r][c].position.z = 0;
+				}
+			}
+		}
+
+		function changeBackMosaic() {
+			//change to green tiles for testing
+			//need to make flipC a parameter!
+			for (r=0; r<rows; r++) {
+				for (c=0; c<cols; c++) {
+					var flipC = cols - c - 1;
+					var card = map[r][flipC];
+					//console.log(card);
+					var side = card.children[1];
+					if ("back".localeCompare(side.userData["side"]) != 0) {
+						side = card.children[0];
+					}
+					setPlaneGeometryUVstoSlabRowCol(side.geometry, r, c);
+					var counter = r*cols + flipC;
+					var slabNumber = Math.floor(counter / 256);
+					var slabName = "/static/tiles/slab" + "-green-"  + slabNumber.toString() + ".png";
+					side.material = slabMaterials[slabName];
+					side.geometry.uvsNeedUpdate = true;
 				}
 			}
 		}	
@@ -692,7 +717,8 @@
 
 		document.getElementById("b5").addEventListener("click", function(event) {
 			//test change image textures on the fly
-			changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			changeBackMosaic();
 			/*
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {

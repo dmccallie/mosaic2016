@@ -6,8 +6,6 @@ slabSize = 2048,2048  #16x16 tiles
 outputDirectory = "./static/tiles/"
 font = ImageFont.truetype("./static/DroidSans-Bold.ttf", size=40)
 
-
-
 textSize = font.getsize("1234")
 ulc = (tileSize[0]/2 - textSize[0]/2, tileSize[0]/2 - textSize[1]/2 - 8)
 boxUlc = (ulc[0]-2, ulc[1]-1)
@@ -31,14 +29,18 @@ numCols = 30
 
 curSlabR = Image.new("RGB", slabSize, "white")
 curSlabB = Image.new("RGB", slabSize, "white")
+curSlabG = Image.new("RGB", slabSize, "white")
 
 for row in range(0,numRows):
 	for col in range(0,numCols):
 	
 		tileR = Image.new("RGB", tileSize, "red")
 		tileB = Image.new("RGB", tileSize, "black")
+		tileG = Image.new("RGB", tileSize, "green")		
+		
 		drawR = ImageDraw.Draw(tileR)
 		drawB = ImageDraw.Draw(tileB)
+		drawG = ImageDraw.Draw(tileG)
 
 		tileNum = row*numCols + col
 		label = str(tileNum)
@@ -53,8 +55,12 @@ for row in range(0,numRows):
 		drawB.line(box, "white", width=3)
 		drawB.line(outerBox, "white", width=1)
 
-		tileR.save(outputDirectory + "tile-red-" + label + ".png")
-		tileB.save(outputDirectory + "tile-black-" + label + ".png")
+		drawG.text(ulc, label, font=font, fill="white")
+		drawG.line(box, "white", width=3)
+		drawG.line(outerBox, "white", width=1)
+
+		#tileR.save(outputDirectory + "tile-red-" + label + ".png")
+		#tileB.save(outputDirectory + "tile-black-" + label + ".png")
 
 		#add to curSlab
 		slabCol = slabItem % 16
@@ -62,17 +68,22 @@ for row in range(0,numRows):
 		corner = (slabCol*tileSize[0], slabRow*tileSize[1])
 		curSlabR.paste(tileR, corner)
 		curSlabB.paste(tileB, corner)
+		curSlabG.paste(tileG, corner)
 		slabItem = slabItem + 1
+		
 		if (slabItem == 16*16):
 			curSlabR.save(outputDirectory + "slab-red-"   + str(slabCount) + ".png")
 			curSlabB.save(outputDirectory + "slab-black-" + str(slabCount) + ".png")		
+			curSlabG.save(outputDirectory + "slab-green-" + str(slabCount) + ".png")
+
 			slabCount = slabCount + 1
 			slabItem = 0
 			curSlabR = Image.new("RGB", slabSize, "white")
 			curSlabB = Image.new("RGB", slabSize, "white")
+			curSlabG = Image.new("RGB", slabSize, "white")
 
 if (slabItem > 0):
 	curSlabR.save(outputDirectory + "slab-red-"   + str(slabCount) + ".png")
 	curSlabB.save(outputDirectory + "slab-black-" + str(slabCount) + ".png")	
-
+	curSlabG.save(outputDirectory + "slab-green-" + str(slabCount) + ".png")
 
