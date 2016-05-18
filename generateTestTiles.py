@@ -1,7 +1,7 @@
 from PIL import Image, ImageFont, ImageDraw
 
 tileSize = 256,256
-slabSize = 8192,8192  #16x16 tiles
+slabSize = 4096,4096  #16x16 tiles
 tilesPerSlabEdge = slabSize[0] / tileSize[0]
 
 outputDirectory = "./static/tiles/"
@@ -25,8 +25,8 @@ outerBox = [(0,0),
 
 slabCount = 0
 slabItem = 0
-numRows = 70
-numCols = 70
+numRows = 32
+numCols = 32
 
 curSlabR = Image.new("RGB", slabSize, "white")
 curSlabB = Image.new("RGB", slabSize, "white")

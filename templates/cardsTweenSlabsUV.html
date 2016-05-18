@@ -53,10 +53,10 @@
 		var raycaster = new THREE.Raycaster();
 
 		//globals for image layout, etc
-		var rows = 30;
-		var cols = 30;
+		var rows = 32;
+		var cols = 32;
 		var tileEdge = 256; //each tile is 256x256
-		var tilesPerSlabEdge = 8192/tileEdge; //number of tiles on slab edge (square slabs)
+		var tilesPerSlabEdge = 4096/tileEdge; //number of tiles on slab edge (square slabs)
 		var tilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
 
 		var white = new THREE.Color(0xffffff);
@@ -84,7 +84,7 @@
 
 		textureURLs = [];
 		
-		for (var i=0; i<2; i++) {
+		for (var i=0; i<4; i++) {
 			textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
 			textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
 			textureURLs.push("/static/tiles/slab" + "-green-" + i.toString() + ".png");		
