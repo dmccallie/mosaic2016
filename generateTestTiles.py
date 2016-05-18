@@ -1,7 +1,8 @@
 from PIL import Image, ImageFont, ImageDraw
 
-tileSize = 128,128
-slabSize = 2048,2048  #16x16 tiles
+tileSize = 256,256
+slabSize = 8192,8192  #16x16 tiles
+tilesPerSlabEdge = slabSize[0] / tileSize[0]
 
 outputDirectory = "./static/tiles/"
 font = ImageFont.truetype("./static/DroidSans-Bold.ttf", size=40)
@@ -24,8 +25,8 @@ outerBox = [(0,0),
 
 slabCount = 0
 slabItem = 0
-numRows = 30
-numCols = 30
+numRows = 70
+numCols = 70
 
 curSlabR = Image.new("RGB", slabSize, "white")
 curSlabB = Image.new("RGB", slabSize, "white")
@@ -63,15 +64,15 @@ for row in range(0,numRows):
 		#tileB.save(outputDirectory + "tile-black-" + label + ".png")
 
 		#add to curSlab
-		slabCol = slabItem % 16
-		slabRow = slabItem // 16
+		slabCol = slabItem % tilesPerSlabEdge
+		slabRow = slabItem // tilesPerSlabEdge
 		corner = (slabCol*tileSize[0], slabRow*tileSize[1])
 		curSlabR.paste(tileR, corner)
 		curSlabB.paste(tileB, corner)
 		curSlabG.paste(tileG, corner)
 		slabItem = slabItem + 1
 		
-		if (slabItem == 16*16):
+		if (slabItem == tilesPerSlabEdge*tilesPerSlabEdge):
 			curSlabR.save(outputDirectory + "slab-red-"   + str(slabCount) + ".png")
 			curSlabB.save(outputDirectory + "slab-black-" + str(slabCount) + ".png")		
 			curSlabG.save(outputDirectory + "slab-green-" + str(slabCount) + ".png")
