@@ -39,8 +39,9 @@
 		camera.position.y = -13;
 		camera.rotation.x = .4;
 
-		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas});
+		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas, });
 		renderer.setSize( 1000, 1000 ); //fixme
+		renderer.sortObjects = true;
 
 		var orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
 
@@ -54,6 +55,9 @@
 		//globals for image layout, etc
 		var rows = 30;
 		var cols = 30;
+		var tileEdge = 128; //each tile is 256x256
+		var tilesPerSlabEdge = 16; //number of tiles on slab edge (square slabs)
+		var tilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
 
 		var white = new THREE.Color(0xffffff);
 		var black = new THREE.Color(0x000000);
@@ -134,6 +138,8 @@
 
 			//create cache of materials, one per slab
 
+
+
 			var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
 
 			for (var entry in slabTextures) {
@@ -142,12 +148,17 @@
 
 			for (var row=0; row<rows; row++) {
 				map[row] = [];
+			}
+
+			for (var row=0; row<rows; row++) {
 				for (var col=0; col<cols; col++) {
+			//for (var col=0; col<cols; col++) {
+				//for (var row=0; row<rows; row++) {
 					var counter = row*cols + col;
-					var slabNumber = Math.floor(counter / 256);
-					var slabOffset = counter - (slabNumber * 256);
-					var slabRow = Math.floor(slabOffset / 16);
-					var slabCol = slabOffset - (slabRow * 16);
+					var slabNumber = Math.floor(counter / tilesPerSlab);
+					var slabOffset = counter - (slabNumber * tilesPerSlab);
+					var slabRow = Math.floor(slabOffset / tilesPerSlabEdge);
+					var slabCol = slabOffset - (slabRow * tilesPerSlabEdge);
 
 					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
 					setPlaneGeometryUVstoSlabRowCol(frontGeometry, slabRow, slabCol);
@@ -188,13 +199,13 @@
 			//set the UV offsets for this PlaneGeometry to row, col of the 16x16 slab
 			//only works with PlaneGeometry! Not with BufferedGeometry
 			//console.log("setting UV for:", geometry);
-			var slabEdgeCount = 16;  //16x16x256 = 2048 x 2048
-			var chunkOffset = 1.0 / slabEdgeCount;
+			//var slabEdgeCount = 16;  //16x16x256 = 2048 x 2048
+			var chunkOffset = 1.0 / tilesPerSlabEdge;
 
-			var ll = new THREE.Vector2( col    * chunkOffset,  (slabEdgeCount-row-1)  * chunkOffset );  //u,v = x, y, where 1,1 = upper right 
-			var ur = new THREE.Vector2((col+1) * chunkOffset,  (slabEdgeCount-row )   * chunkOffset );
-			var lr = new THREE.Vector2((col+1) * chunkOffset,  (slabEdgeCount-row-1)  * chunkOffset );
-			var ul = new THREE.Vector2( col    * chunkOffset,  (slabEdgeCount-row )   * chunkOffset );
+			var ll = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row-1)  * chunkOffset );  //u,v = x, y, where 1,1 = upper right 
+			var ur = new THREE.Vector2((col+1) * chunkOffset,  (tilesPerSlabEdge-row )   * chunkOffset );
+			var lr = new THREE.Vector2((col+1) * chunkOffset,  (tilesPerSlabEdge-row-1)  * chunkOffset );
+			var ul = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row )   * chunkOffset );
 
 			//geometry.faceVertexUvs[layer#][face#][vertex#] = UV-vec2
 			geometry.faceVertexUvs[0][0][0] = ul;  //first vertex is v0 is plane's UL corner
@@ -220,6 +231,7 @@
 		function changeBackMosaic() {
 			//change to green tiles for testing
 			//need to make flipC a parameter!
+			var totalTilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
 			for (r=0; r<rows; r++) {
 				for (c=0; c<cols; c++) {
 					var flipC = cols - c - 1;
@@ -231,7 +243,7 @@
 					}
 					setPlaneGeometryUVstoSlabRowCol(side.geometry, r, c);
 					var counter = r*cols + flipC;
-					var slabNumber = Math.floor(counter / 256);
+					var slabNumber = Math.floor(counter / totalTilesPerSlab );
 					var slabName = "/static/tiles/slab" + "-green-"  + slabNumber.toString() + ".png";
 					side.material = slabMaterials[slabName];
 					side.geometry.uvsNeedUpdate = true;
