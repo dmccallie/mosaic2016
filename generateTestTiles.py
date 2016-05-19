@@ -1,7 +1,7 @@
 from PIL import Image, ImageFont, ImageDraw
 
 tileSize = 256,256
-slabSize = 4096,4096  #16x16 tiles
+slabSize = 4096,4096 
 tilesPerSlabEdge = slabSize[0] / tileSize[0]
 
 outputDirectory = "./static/tiles/"

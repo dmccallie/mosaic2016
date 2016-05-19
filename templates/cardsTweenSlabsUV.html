@@ -84,10 +84,12 @@
 
 		textureURLs = [];
 		
-		for (var i=0; i<4; i++) {
-			textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
-			textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
-			textureURLs.push("/static/tiles/slab" + "-green-" + i.toString() + ".png");		
+		for (var i=0; i<6; i++) {
+			//textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
+			//textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
+			//textureURLs.push("/static/tiles/slab" + "-green-" + i.toString() + ".png");		
+			textureURLs.push("/static/tiles/slab-" + i.toString() + ".jpg");		
+		
 		}
 
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
@@ -171,13 +173,14 @@
 					setPlaneGeometryUVstoSlabRowCol(backGeometry, slabRow, slabCol);
 					backGeometry.uvsNeedUpdate = true;		
 
-					var slabRedName  = "/static/tiles/slab"  + "-red-"    + slabNumber.toString() + ".png";
-					var slabBlackName = "/static/tiles/slab" + "-black-"  + slabNumber.toString() + ".png";
+					//var slabRedName  = "/static/tiles/slab"  + "-red-"    + slabNumber.toString() + ".png";
+					//var slabBlackName = "/static/tiles/slab" + "-black-"  + slabNumber.toString() + ".png";
+					var slabName = "/static/tiles/slab-" + slabNumber.toString() + ".jpg";
 
-					var slabRedMaterial = slabMaterials[slabRedName];
+					var slabRedMaterial = slabMaterials[slabName];
 					var frontMesh = new THREE.Mesh(frontGeometry, slabRedMaterial);
 
-					var slabBlackMaterial = slabMaterials[slabBlackName];
+					var slabBlackMaterial = slabMaterials[slabName];
 					var backMesh = new THREE.Mesh(backGeometry, slabBlackMaterial);
 
 					var card = new THREE.Object3D();
