@@ -27,6 +27,7 @@
 		<script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.2/TweenMax.min.js"></script>
 		<script src="/static/OrbitControls.js"></script>
 		<script src="/static/stats.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
 		<script>
 
 		THREE.Cache.enabled = true;
@@ -91,6 +92,28 @@
 			textureURLs.push("/static/tiles/slab-" + i.toString() + ".jpg");		
 		
 		}
+
+		//test load first image
+
+		var imageMap = null;
+		$.ajax({
+			method: "GET",
+			url: "/imagemap/IMG_9975",
+			dataType: "jsonp",
+			jsonp: false,
+			jsonpCallback: "callback"
+		}).done(function(data) {
+			console.log("fetched image map = ", data);
+			imageMap = data;
+		});
+		
+
+		//load and parse the slabMap
+		var slabMap = null;
+		$.getJSON("/slabmap", function(data) {
+			slabMap = data;
+			console.log("slabMap = ", slabMap);
+		});
 
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
 
@@ -224,11 +247,47 @@
 		function positionLotsofCards(map, rows, cols) {
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
-					map[r][c].position.x = -7 + (c * 0.45);
-					map[r][c].position.y = 6.5 - (r * 0.45);
+					map[r][c].position.x = -7 + (c * 0.5);
+					map[r][c].position.y = 6.5 - (r * 0.5);
 					map[r][c].position.z = 0;
 				}
 			}
+		}
+
+		function loadImageTilesToSide() {
+			//var totalTilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
+			imageName = imageMap.name;
+			iRows = imageMap.rows;
+			iCols = imageMap.cols;
+			for (r=0; r<iRows; r++) {
+				for (c=0; c<iCols; c++) {
+					//var flipC = iCols - c - 1;
+					var card = map[r][c];
+					//console.log(card);
+					var side = card.children[0];
+					if ("front".localeCompare(side.userData["side"]) != 0) {
+						side = card.children[1];
+					}
+					//console.log("side = ", side);
+					var tileName = imageMap.map[r][c];
+					if (r==0 && c==0) {console.log("0,0 tile = ", tileName);}
+					slabDetails = slabMap[tileName];
+					slabRow = slabDetails.row;
+					slabCol = slabDetails.col;
+					if (r==0 && c==0) {console.log("0,0 slab details =  ", slabDetails);}
+					//console.log("slab details = ", slabDetails);
+
+					setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
+					//var counter = r*cols + flipC;
+					//var slabNumber = Math.floor(counter / totalTilesPerSlab );
+					//var slabName = "/static/tiles/slab" + "-green-"  + slabNumber.toString() + ".png";
+					var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
+
+					side.material = slabMaterials[slabName];
+					if (r==0 && c==0) { console.log("side material = ", side.material); }
+					side.geometry.uvsNeedUpdate = true;
+				}
+			}		
 		}
 
 		function changeBackMosaic() {
@@ -733,7 +792,8 @@
 		document.getElementById("b5").addEventListener("click", function(event) {
 			//test change image textures on the fly
 			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
-			changeBackMosaic();
+			//changeBackMosaic();
+			loadImageTilesToSide();
 			/*
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {

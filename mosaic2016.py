@@ -1,5 +1,7 @@
 from flask import Flask
 from flask import render_template
+from flask import jsonify
+from flask import Response
 
 app = Flask(__name__)
 
@@ -55,6 +57,25 @@ def testUVmanipulation():
 @app.route('/cardsTweenSlabsUV')
 def cardsTweenSlabsUV():
 	return render_template('cardsTweenSlabsUV.html')
+
+@app.route('/slabmap', methods = ['GET'])
+def get_slabMap():
+	#load the slab map and return (it's already JSON)
+	mapFile = open("./static/tiles/slabmap.json", 'r')
+	resp = Response(mapFile.read(), status=200, mimetype='application/json')
+	return(resp)
+	#return jsonify(mapFile.read())
+	mapFile.close()
+
+@app.route('/imagemap/<imagename>', methods = ['GET'])
+def get_imageMap(imagename):
+	#load the map of this image's tiles (already in JSON form)
+	imageFile = open("/Users/david/Documents/MosaicTemp/smugmug_dump_tiles/" + imagename + ".json", 'r')
+	#print("returning ", imageFile.read())
+	resp = Response(imageFile.read(), status=200, mimetype='application/json')
+	return(resp)
+	#return jsonify(mapFile.read())
+	imageFile.close()	
 
 def generateTiles():
 	#test generation via templates
@@ -112,6 +133,6 @@ def line(x0, y0, x1, y1):
 	points.append((x,y))
 
 if __name__ == '__main__':
-	#app.debug = True
+	app.debug = True
 	app.run()
 
