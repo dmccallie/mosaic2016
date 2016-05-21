@@ -72,9 +72,9 @@
 
 
 		//build the geometry of a card
-		var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
-		var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
-		geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+		//var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+		//var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
+		//geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
 
 		//this loader will keep track of asynch loading textures
 		var textureLoadingManager = new THREE.LoadingManager();
@@ -83,42 +83,26 @@
 			startWorld();  //stuff that has to wait for textures to be loaded
 		};
 
-		textureURLs = [];
-		
-		for (var i=0; i<6; i++) {
-			//textureURLs.push("/static/tiles/slab" + "-red-"   + i.toString() + ".png");
-			//textureURLs.push("/static/tiles/slab" + "-black-" + i.toString() + ".png");
-			//textureURLs.push("/static/tiles/slab" + "-green-" + i.toString() + ".png");		
-			textureURLs.push("/static/tiles/slab-" + i.toString() + ".jpg");		
-		
-		}
-
-		//test load first image
-
-		var imageMap = null;
-		$.ajax({
-			method: "GET",
-			url: "/imagemap/IMG_9975",
-			dataType: "jsonp",
-			jsonp: false,
-			jsonpCallback: "callback"
-		}).done(function(data) {
-			console.log("fetched image map = ", data);
-			imageMap = data;
-		});
-		
-
-		//load and parse the slabMap
+		//load and parse the slabMap - FIXME - make asych
 		var slabMap = null;
 		$.getJSON("/slabmap", function(data) {
 			slabMap = data;
 			console.log("slabMap = ", slabMap);
 		});
 
+		textureURLs = [];
+		
+		for (var i=0; i<6; i++) {	
+			textureURLs.push("/static/tiles/slab-" + i.toString() + ".jpg");		
+		}
+
+
 		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
 
 		var startWorld = function() {
 			//console.log("DONE LOADING!");
+
+
 
 			createLotsOfCardsFromSlabsUV();
 
@@ -126,6 +110,20 @@
 
 			TweenLite.ticker.addEventListener("tick", render);
 
+		}
+
+		function loadImageTileMap(imageName, callback) {
+		//load JSON map of all the tiles that make up this image
+			var imageURL = "/imagemap/" + imageName;
+			$.ajax({
+				method: "GET",
+				url: imageURL,
+				dataType: "jsonp",
+				jsonp: false,
+				jsonpCallback: "callback"  //funky leftover from JSONP era - FIXME
+			}).done(function(data) {
+				callback(data);
+			});			
 		}
 
 		function loadImageTextures(loadingManager, listOfURLs) {
@@ -162,8 +160,6 @@
 			//will have to be re-worked for real code
 
 			//create cache of materials, one per slab
-
-
 
 			var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
 
@@ -207,10 +203,10 @@
 					var backMesh = new THREE.Mesh(backGeometry, slabBlackMaterial);
 
 					var card = new THREE.Object3D();
-					frontMesh.userData = {"side": "front"};
+					frontMesh.userData = {"side": "front", "row": row, "col": col};
 					card.add(frontMesh);
 
-					backMesh.userData = {"side": "back"};
+					backMesh.userData = {"side": "back", "row": row, "col": col};
 					card.add(backMesh);
 					
 					map[row][col] = card;
@@ -225,7 +221,7 @@
 			//set the UV offsets for this PlaneGeometry to row, col of the 16x16 slab
 			//only works with PlaneGeometry! Not with BufferedGeometry
 			//console.log("setting UV for:", geometry);
-			//var slabEdgeCount = 16;  //16x16x256 = 2048 x 2048
+
 			var chunkOffset = 1.0 / tilesPerSlabEdge;
 
 			var ll = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row-1)  * chunkOffset );  //u,v = x, y, where 1,1 = upper right 
@@ -234,13 +230,14 @@
 			var ul = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row )   * chunkOffset );
 
 			//geometry.faceVertexUvs[layer#][face#][vertex#] = UV-vec2
-			geometry.faceVertexUvs[0][0][0] = ul;  //first vertex is v0 is plane's UL corner
-			geometry.faceVertexUvs[0][0][1] = ll;  //second vertex is V2 = LL corner
-			geometry.faceVertexUvs[0][0][2] = ur;  //third vertex is v1 = UR	corner			
+			//NOTE -- must use COPY, not assignment, for some reason!
+			(geometry.faceVertexUvs[0][0][0]).copy(ul);  //first vertex is v0 is plane's UL corner
+			(geometry.faceVertexUvs[0][0][1]).copy(ll);  //second vertex is V2 = LL corner
+			(geometry.faceVertexUvs[0][0][2]).copy(ur);  //third vertex is v1 = UR	corner			
 
-			geometry.faceVertexUvs[0][1][0] = ll;  //first vertex is LL
-			geometry.faceVertexUvs[0][1][1] = lr;  //second vertex is LR
-			geometry.faceVertexUvs[0][1][2] = ur;  //third vertex is UR
+			geometry.faceVertexUvs[0][1][0].copy(ll);  //first vertex is LL
+			geometry.faceVertexUvs[0][1][1].copy(lr);  //second vertex is LR
+			geometry.faceVertexUvs[0][1][2].copy(ur);  //third vertex is UR
 
 		}
 
@@ -254,38 +251,70 @@
 			}
 		}
 
-		function loadImageTilesToSide() {
-			//var totalTilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
-			imageName = imageMap.name;
-			iRows = imageMap.rows;
-			iCols = imageMap.cols;
-			for (r=0; r<iRows; r++) {
-				for (c=0; c<iCols; c++) {
+		function loadImageTilesToSide(imageJSONmap, whichSide) {
+			//ASSUMES that imageJSONmap has been loaded!
+			var imageName = imageJSONmap.name;
+			var iRows = imageJSONmap.rows;
+			var iCols = imageJSONmap.cols;
+			var minRow = 0, maxRow = rows, minCol = 0, maxCol = cols;
+			
+			var gap = Math.floor((rows - iRows) / 2);
+			if (gap > 0) {
+				minRow = gap;
+				maxRow = rows - gap -1;
+			}
+			
+			gap =  Math.floor((cols - iCols) / 2);
+			if (gap > 0) {
+				minCol = gap;
+				maxCol = cols - gap -1;
+			}
+
+			if (typeof whichSide === 'undefined') whichSide = "front";
+
+
+			var imageRow = 0, imageCol = 0;
+			for (var r=0; r<rows; r++) {
+				for (var c=0; c<cols; c++) {
 					//var flipC = iCols - c - 1;
+
 					var card = map[r][c];
-					//console.log(card);
-					var side = card.children[0];
-					if ("front".localeCompare(side.userData["side"]) != 0) {
+					var side = null;
+
+					if (whichSide === "front")  {
+						side = card.children[0];  //always safe that front is child 0 ??? FIXME
+						//console.log("prepared to load image to FRONT side ", side);
+					} else {
+						//console.log("prepared to load image to BACK side ", side);
 						side = card.children[1];
+					}					
+					
+					if (r < minRow || r >= maxRow || c < minCol || c >= maxCol) {
+						//blank tile
+						side.visible = false;
+
+					} else {
+
+
+						imageRow = r - minRow;
+						imageCol = c - minCol;
+
+						var tileName = imageJSONmap.map[imageRow][imageCol];
+
+						var slabDetails = slabMap[tileName];
+						var slabRow = slabDetails.row;
+						var slabCol = slabDetails.col;
+
+						setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
+						side.geometry.uvsNeedUpdate = true;
+
+						side.userData["imageName"] = tileName;
+						//console.log(side.userData);
+
+						var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
+						side.material = slabMaterials[slabName];
+						side.visible = true;
 					}
-					//console.log("side = ", side);
-					var tileName = imageMap.map[r][c];
-					if (r==0 && c==0) {console.log("0,0 tile = ", tileName);}
-					slabDetails = slabMap[tileName];
-					slabRow = slabDetails.row;
-					slabCol = slabDetails.col;
-					if (r==0 && c==0) {console.log("0,0 slab details =  ", slabDetails);}
-					//console.log("slab details = ", slabDetails);
-
-					setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
-					//var counter = r*cols + flipC;
-					//var slabNumber = Math.floor(counter / totalTilesPerSlab );
-					//var slabName = "/static/tiles/slab" + "-green-"  + slabNumber.toString() + ".png";
-					var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
-
-					side.material = slabMaterials[slabName];
-					if (r==0 && c==0) { console.log("side material = ", side.material); }
-					side.geometry.uvsNeedUpdate = true;
 				}
 			}		
 		}
@@ -793,7 +822,13 @@
 			//test change image textures on the fly
 			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
 			//changeBackMosaic();
-			loadImageTilesToSide();
+			loadImageTileMap("IMG_9975", function(data) {
+				var imageMap = data; //set global for now
+				console.log("fetched image map = ", imageMap);
+				loadImageTilesToSide(imageMap);
+			});
+
+
 			/*
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
@@ -843,7 +878,23 @@
 				rowcol = inv_map[hit.object.parent.id];
 				console.log("intersected = ", hit, " at rc = ", rowcol);
 				
-				doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+				//see if we hit a named face
+				if (hit.object.userData.hasOwnProperty('imageName')) {
+					var imageName = hit.object.userData['imageName'];
+					loadImageTileMap(imageName, function(data) {
+						var imageMap = data; //set global for now
+
+						
+						if (hit.object.userData['side'] === "front")
+							loadImageTilesToSide(imageMap, "back");
+						else
+							loadImageTilesToSide(imageMap, "front");
+
+						doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+					});					
+				} else {
+					doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+				}
 			}
 			return
 		}
