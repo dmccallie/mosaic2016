@@ -21,6 +21,7 @@
 		<button type="button" id="b3">Three</button>
 		<button type="button" id="b4">Pinwheel</button>
 		<button type="button" id="b5">Texture</button>
+		<button type="button" id="b6">Show Image</button>
 		<div id="stats" class="stats"></div>
 		<canvas id="rendercanvas"></canvas>
 		<script src="/static/three.js"></script>
@@ -242,10 +243,14 @@
 		}
 
 		function positionLotsofCards(map, rows, cols) {
+			//each square tile (card) is 0.5x0.5, positioned from CENTER of the square!
+			var tileEdgeGLsize = 0.5;
+			var leftMostCardCenter = (cols*tileEdgeGLsize)/2.0 - (tileEdgeGLsize/2.0);
+			var topMostCardCenter = (rows*tileEdgeGLsize)/2.0 - (tileEdgeGLsize/2.0);
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
-					map[r][c].position.x = -7 + (c * 0.5);
-					map[r][c].position.y = 6.5 - (r * 0.5);
+					map[r][c].position.x = -leftMostCardCenter + (c * tileEdgeGLsize);
+					map[r][c].position.y = topMostCardCenter - (r * tileEdgeGLsize);
 					map[r][c].position.z = 0;
 				}
 			}
@@ -702,15 +707,15 @@
 
 			spline = new THREE.CatmullRomCurve3([
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1), //start point
-			    new THREE.Vector3(pts[0][0], pts[0][1] , delZ*0.3), 
-			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*0.6),
-			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*1.0),
-			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*0.7),
+			    new THREE.Vector3(pts[0][0], pts[0][1] , delZ*0.6), // delZ*0.3), 
+			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*2.0), //delZ*0.6),
+			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*4.0), //delZ*1.0),
+			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*2.0), //delZ*0.7),
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
 			    ]);
 
 			let wrapper = {'tile':tileStart, 'curve': spline, curveLoc: 0};
-			TweenLite.to(wrapper, 8, { curveLoc:1, onUpdate: moveAlongSpline, 
+			TweenLite.to(wrapper, 6, { curveLoc:1, onUpdate: moveAlongSpline, 
 				onUpdateParams:[wrapper], ease: Circ}).delay(delay); 
 
 			//wrapper = {'tile':map[10][10], 'curve': spline, curveLoc: 0};
@@ -827,21 +832,75 @@
 				console.log("fetched image map = ", imageMap);
 				loadImageTilesToSide(imageMap);
 			});
-
-
-			/*
-			for (var r=0; r<rows; r++) {
-				for (var c=0; c<cols; c++) {
-					if ((r % 2 == 0) && (c % 2 == 0) ) {
-						var card = map[r][c];
-						changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], card, "back");
-						changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], card, "front");
-					}
-				}
-			}
-			*/
 				
 		});
+
+
+		//FIXME - don't want these to be globals
+		var wiMesh = null;
+		var wiMaterial = null;
+		var wiGeometry = null;
+
+		document.getElementById("b6").addEventListener("click", function(event) {
+			//test change image textures on the fly
+			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			//changeBackMosaic();
+			
+			var imageName = "IMG_9975";
+			
+			if ( wiMesh == null) {
+
+				loadImageTileMap(imageName, function(data) {
+					var imageMap = data; //set global for now
+					console.log("fetched image map = ", imageMap);
+					//try showing the whole image, non-POT
+					var imageURL = "/image/" + imageName
+					var wholeImage = new THREE.TextureLoader().load(imageURL, 
+						function(texture) {
+							console.log("loaded the texture");
+							texture.minFilter = THREE.LinearFilter;  //prevents POT scaling????
+							wiMaterial = new THREE.MeshBasicMaterial( {  map:texture, side:THREE.FrontSide,
+								transparent:true, opacity:0} ); //, transparent:true, opacity:0.4} );
+
+							wiGeometry = new THREE.PlaneGeometry( imageMap.cols/2, imageMap.rows/2, 1, 1);
+							wiMesh = new THREE.Mesh(wiGeometry, wiMaterial);
+
+							//position may need offset since odd number of rows or cols will cause asymmetrical placement
+							// when the image is assigned to the fixed layout of tiles
+							var rowgap = Math.floor((rows - imageMap.rows) / 2); //note the round-down
+							var colgap =  Math.floor((cols - imageMap.cols) / 2);
+							(colgap % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = 0.25;
+							(rowgap % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = 0.25;
+							wiMesh.position.z = .1;
+
+							scene.add(wiMesh);
+							$("#b6").prop("disabled", true);
+							TweenMax.to(wiMaterial, 3.0, { opacity: 1.0, onComplete: function(){
+								$("#b6").text("Hide Image");
+								$("#b6").prop("disabled", false);						
+							}} );
+						},
+						null,
+						function ( xhr ) {
+							console.log( 'An error happened when loading whole image', xhr );
+						}
+					);
+				});
+
+			} else {
+				$("#b6").prop("disabled", true);
+				TweenMax.to(wiMaterial, 2.0, { opacity: 0, onComplete: function () {
+					//fix me - avoid these globals
+					console.log("complete dimming of image");
+					scene.remove(wiMesh);
+					wiMesh = null;
+					wiMaterial = null;		
+					$("#b6").text("Show Image");
+					$("#b6").prop("disabled", false);
+			} } );
+			}
+		});
+
 
 		renderer.domElement.addEventListener( 'click', function ( event ) {
 			event.preventDefault();
@@ -878,6 +937,9 @@
 				rowcol = inv_map[hit.object.parent.id];
 				console.log("intersected = ", hit, " at rc = ", rowcol);
 				
+				//fixme - what if I don't hit a card?
+				if (typeof rowcol === 'undefined') return;
+
 				//see if we hit a named face
 				if (hit.object.userData.hasOwnProperty('imageName')) {
 					var imageName = hit.object.userData['imageName'];

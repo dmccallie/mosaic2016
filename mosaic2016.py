@@ -2,6 +2,7 @@ from flask import Flask
 from flask import render_template
 from flask import jsonify
 from flask import Response
+from flask import send_file
 
 app = Flask(__name__)
 
@@ -75,7 +76,15 @@ def get_imageMap(imagename):
 	resp = Response(imageFile.read(), status=200, mimetype='application/json')
 	return(resp)
 	#return jsonify(mapFile.read())
-	imageFile.close()	
+	imageFile.close()
+
+@app.route('/image/<imagename>', methods = ['GET'])
+def get_image(imagename):
+	#load the map of this image's tiles (already in JSON form)
+	imageFile = open("/Users/david/Documents/MosaicTemp/smugmug_dump_tiles/" + imagename + "-sized.jpg", 'r')
+	#print("returning ", imageFile.read())
+	return send_file(imageFile, mimetype='image/jpeg')
+	
 
 def generateTiles():
 	#test generation via templates
