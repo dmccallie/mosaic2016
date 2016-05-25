@@ -59,6 +59,10 @@ def testUVmanipulation():
 def cardsTweenSlabsUV():
 	return render_template('cardsTweenSlabsUV.html')
 
+@app.route('/mosaicOneSide')
+def mosaicOneSide():
+	return render_template('mosaicOneSide.html')
+
 @app.route('/slabmap', methods = ['GET'])
 def get_slabMap():
 	#load the slab map and return (it's already JSON)

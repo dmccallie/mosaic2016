@@ -1,0 +1,1006 @@
+<html>
+	<head>
+		<title>My first Three.js app</title>
+		<style>
+			body { margin: 0; }
+			button {margin: 10px;}
+			canvas { 
+				background-color: #000;
+				border: 2px solid red;
+				width: 1000px; height: 1000px; 
+				margin: 40px; 
+				position: fixed; /*uses margin to offset, ignores top/left */
+				/* added one line */
+			}
+			div.stats {  }
+		</style>
+	</head>
+	<body>
+		<button type="button" id="b1">One</button>
+		<button type="button" id="b2">Two</button>
+		<button type="button" id="b3">Three</button>
+		<button type="button" id="b4">Pinwheel</button>
+		<button type="button" id="b5">Texture</button>
+		<button type="button" id="b6">Show Image</button>
+		<div id="stats" class="stats"></div>
+		<canvas id="rendercanvas"></canvas>
+		<script src="/static/three.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.2/TweenMax.min.js"></script>
+		<script src="/static/OrbitControls.js"></script>
+		<script src="/static/stats.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+		<script>
+
+		THREE.Cache.enabled = true;
+
+		//set up webgl stuff
+		var scene = new THREE.Scene();
+		
+		var camera = new THREE.PerspectiveCamera( 750, 1000/1000, 0.1, 1000 );
+		camera.position.z = 28;
+		camera.position.y = -13;
+		camera.rotation.x = .4;
+
+		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas, });
+		renderer.setSize( 1000, 1000 ); //fixme
+		renderer.sortObjects = true;
+
+		var orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+		var statsdiv = document.getElementById("stats");
+		stats = new Stats();
+		statsdiv.appendChild( stats.dom );
+
+		var mouse = new THREE.Vector2();
+		var raycaster = new THREE.Raycaster();
+
+		//globals for image layout, etc
+		var rows = 32;
+		var cols = 32;
+		var tileEdge = 256; //each tile is 256x256
+		var tilesPerSlabEdge = 4096/tileEdge; //number of tiles on slab edge (square slabs)
+		var tilesPerSlab = tilesPerSlabEdge*tilesPerSlabEdge;
+
+		var white = new THREE.Color(0xffffff);
+		var black = new THREE.Color(0x000000);
+		var hilightColor = new THREE.Color(1,0,0);
+
+		//globals for card locations and stuff
+		var map = []; //2D array maps [row][col] to card object (parent of two sides)
+		var inv_map = new Map(); //hash maps parent card object to original row and col
+		var slabTextures = new Map(); //index the textures by name
+		var slabMaterials = new Map(); //index the materials for each slab by name
+
+
+		//build the geometry of a card
+		//var geometry = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1);
+		//var geometryBack = new THREE.PlaneGeometry( 0.5, 0.5, 1, 1); //to serve as backside, inverted texture
+		//geometryBack.applyMatrix( new THREE.Matrix4().makeRotationY( Math.PI ) );
+
+		//this loader will keep track of asynch loading textures
+		var textureLoadingManager = new THREE.LoadingManager();
+
+		textureLoadingManager.onLoad = function ( ) {
+			startWorld();  //stuff that has to wait for textures to be loaded
+		};
+
+		//load and parse the slabMap - FIXME - make asych
+		var slabMap = null;
+		$.getJSON("/slabmap", function(data) {
+			slabMap = data;
+			console.log("slabMap = ", slabMap);
+		});
+
+		textureURLs = [];
+		
+		for (var i=0; i<6; i++) {	
+			textureURLs.push("/static/tiles/slab-" + i.toString() + ".jpg");		
+		}
+
+
+		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
+
+		var startWorld = function() {
+			//console.log("DONE LOADING!");
+
+
+
+			createLotsOfCardsFromSlabsUV();
+
+			positionLotsofCards(map, rows, cols);
+
+			TweenLite.ticker.addEventListener("tick", render);
+
+		}
+
+		function loadImageTileMap(imageName, callback) {
+		//load JSON map of all the tiles that make up this image
+			var imageURL = "/imagemap/" + imageName;
+			$.ajax({
+				method: "GET",
+				url: imageURL,
+				dataType: "jsonp",
+				jsonp: false,
+				jsonpCallback: "callback"  //funky leftover from JSONP era - FIXME
+			}).done(function(data) {
+				callback(data);
+			});			
+		}
+
+		function loadImageTextures(loadingManager, listOfURLs) {
+			//for each ULR, load the image into a texture, using the loading manager
+
+			textureLoader = new THREE.TextureLoader(loadingManager);
+
+			for (var i=0; i<listOfURLs.length; i++) {
+				let imageURL = listOfURLs[i];  //creates local copy so that closure works!!
+				
+				textureLoader.load(imageURL, 
+					function(texture) {
+						slabTextures[imageURL] = texture;
+						//console.log("loaded texture ", imageURL);
+					},
+					function ( xhr ) {
+						console.log("xhr call = ", xhr);
+						if ( xhr.lengthComputable ) {
+							var percentComplete = xhr.loaded / xhr.total * 100;
+							console.log( imageURL, Math.round(percentComplete, 2) + ' % downloaded' );
+						}
+					},
+					function ( xhr ) {
+						console.log( 'An error happened' );
+					}
+				);
+			}
+		}
+
+		function createLotsOfCardsFromSlabsUV() {
+			//use the preloaded slabs, and create two-sided cards, red and black
+			//just a scaling test for now
+			//assumes all textures have been loaded, but not yet converted to Materials, so do that first.
+			//will have to be re-worked for real code
+
+			//create cache of materials, one per slab
+
+			var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
+
+			for (var entry in slabTextures) {
+				//slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.FrontSide});
+				slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.DoubleSide});
+
+			}
+
+			for (var row=0; row<rows; row++) {
+				map[row] = [];
+			}
+
+			for (var row=0; row<rows; row++) {
+				for (var col=0; col<cols; col++) {
+			//for (var col=0; col<cols; col++) {
+				//for (var row=0; row<rows; row++) {
+					var counter = row*cols + col;
+					var slabNumber = Math.floor(counter / tilesPerSlab);
+					var slabOffset = counter - (slabNumber * tilesPerSlab);
+					var slabRow = Math.floor(slabOffset / tilesPerSlabEdge);
+					var slabCol = slabOffset - (slabRow * tilesPerSlabEdge);
+
+					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
+					setPlaneGeometryUVstoSlabRowCol(frontGeometry, slabRow, slabCol);
+					frontGeometry.uvsNeedUpdate = true;
+
+					//var backGeometry  = new THREE.PlaneGeometry( 0.5, 0.5);
+					//backGeometry.applyMatrix( flipMatrix );
+
+					//need to make this a function of "flipC"
+					//setPlaneGeometryUVstoSlabRowCol(backGeometry, slabRow, slabCol);
+					//backGeometry.uvsNeedUpdate = true;		
+
+
+					var slabName = "/static/tiles/slab-" + slabNumber.toString() + ".jpg";
+
+					var slabRedMaterial = slabMaterials[slabName];
+					var frontMesh = new THREE.Mesh(frontGeometry, slabRedMaterial);
+
+					//var slabBlackMaterial = slabMaterials[slabName];
+					//var backMesh = new THREE.Mesh(backGeometry, slabBlackMaterial);
+
+					var card = new THREE.Object3D();
+					frontMesh.userData = {"side": "front", "row": row, "col": col};
+					card.add(frontMesh);
+
+					//backMesh.userData = {"side": "back", "row": row, "col": col};
+					//card.add(backMesh);
+					
+					map[row][col] = card;
+					inv_map[card.id] = {'row': row, 'col':col};
+					
+					scene.add(card);
+				}
+			}
+		}
+
+		function setPlaneGeometryUVstoSlabRowCol(geometry, row, col) {
+			//set the UV offsets for this PlaneGeometry to row, col of the 16x16 slab
+			//only works with PlaneGeometry! Not with BufferedGeometry
+			//console.log("setting UV for:", geometry);
+
+			var chunkOffset = 1.0 / tilesPerSlabEdge;
+
+			var ll = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row-1)  * chunkOffset );  //u,v = x, y, where 1,1 = upper right 
+			var ur = new THREE.Vector2((col+1) * chunkOffset,  (tilesPerSlabEdge-row )   * chunkOffset );
+			var lr = new THREE.Vector2((col+1) * chunkOffset,  (tilesPerSlabEdge-row-1)  * chunkOffset );
+			var ul = new THREE.Vector2( col    * chunkOffset,  (tilesPerSlabEdge-row )   * chunkOffset );
+
+			//geometry.faceVertexUvs[layer#][face#][vertex#] = UV-vec2
+			//NOTE -- must use COPY, not assignment, for some reason!
+			(geometry.faceVertexUvs[0][0][0]).copy(ul);  //first vertex is v0 is plane's UL corner
+			(geometry.faceVertexUvs[0][0][1]).copy(ll);  //second vertex is V2 = LL corner
+			(geometry.faceVertexUvs[0][0][2]).copy(ur);  //third vertex is v1 = UR	corner			
+
+			geometry.faceVertexUvs[0][1][0].copy(ll);  //first vertex is LL
+			geometry.faceVertexUvs[0][1][1].copy(lr);  //second vertex is LR
+			geometry.faceVertexUvs[0][1][2].copy(ur);  //third vertex is UR
+
+		}
+
+		function positionLotsofCards(map, rows, cols) {
+			//each square tile (card) is 0.5x0.5, positioned from CENTER of the square!
+			var tileEdgeGLsize = 0.5;
+			var leftMostCardCenter = (cols*tileEdgeGLsize)/2.0 - (tileEdgeGLsize/2.0);
+			var topMostCardCenter = (rows*tileEdgeGLsize)/2.0 - (tileEdgeGLsize/2.0);
+			for (var r=0; r<rows; r++) {
+				for (var c=0; c<cols; c++) {
+					map[r][c].position.x = -leftMostCardCenter + (c * tileEdgeGLsize);
+					map[r][c].position.y = topMostCardCenter - (r * tileEdgeGLsize);
+					map[r][c].position.z = 0;
+				}
+			}
+		}
+
+		function loadImageTilesToSide(imageJSONmap, whichSide) {
+			//ASSUMES that imageJSONmap has been loaded!
+			var imageName = imageJSONmap.name;
+			var iRows = imageJSONmap.rows;
+			var iCols = imageJSONmap.cols;
+			var minRow = 0, maxRow = rows, minCol = 0, maxCol = cols;
+			
+			var gap = Math.floor((rows - iRows) / 2);
+			if (gap > 0) {
+				minRow = gap;
+				maxRow = rows - gap -1;
+			}
+			
+			gap =  Math.floor((cols - iCols) / 2);
+			if (gap > 0) {
+				minCol = gap;
+				maxCol = cols - gap -1;
+			}
+
+			//if (typeof whichSide === 'undefined') whichSide = "front";
+			whichSide = "front";
+
+
+			var imageRow = 0, imageCol = 0;
+			for (var r=0; r<rows; r++) {
+				for (var c=0; c<cols; c++) {
+					//var flipC = iCols - c - 1;
+
+					var card = map[r][c];
+					var side = null;
+
+					if (whichSide === "front")  {
+						side = card.children[0];  //always safe that front is child 0 ??? FIXME
+						//console.log("prepared to load image to FRONT side ", side);
+					} 
+					//else {
+
+					//	side = card.children[1];
+					//}					
+					
+					if (r < minRow || r >= maxRow || c < minCol || c >= maxCol) {
+						//blank tile
+						side.visible = false;
+
+					} else {
+
+
+						imageRow = r - minRow;
+						imageCol = c - minCol;
+
+						var tileName = imageJSONmap.map[imageRow][imageCol];
+
+						var slabDetails = slabMap[tileName];
+						var slabRow = slabDetails.row;
+						var slabCol = slabDetails.col;
+
+						setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
+						side.geometry.uvsNeedUpdate = true;
+
+						side.userData["imageName"] = tileName;
+						//console.log(side.userData);
+
+						var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
+						side.material = slabMaterials[slabName];
+						side.visible = true;
+					}
+				}
+			}		
+		}
+
+		function updateOneCardToNextImage(card) {
+			//called when a transition completes
+			//points to the Object3D card that needs update
+			//assumes global imageJSONmap is ready to go!  -- fixme
+			var imageName = imageJSONmap.name;
+			var iRows = imageJSONmap.rows;
+			var iCols = imageJSONmap.cols;
+
+			var side = card.children[0]; //only one child - front only
+
+			//if this card falls within the image, update the geomtry and material to new UV map
+			//otherwise, set card's face to black
+			
+			var minRow = 0, maxRow = rows, minCol = 0, maxCol = cols;
+			var gap = Math.floor((rows - iRows) / 2);
+			if (gap > 0) {
+				minRow = gap;
+				maxRow = rows - gap -1;
+			}
+			
+			gap =  Math.floor((cols - iCols) / 2);
+			if (gap > 0) {
+				minCol = gap;
+				maxCol = cols - gap -1;
+			}
+
+			//decode which card this is from userData of the (front) Mesh
+			tileRow = side.userData.row; //the card's absolute position
+			tileCol = side.userData.col;
+
+			if (tileRow < minRow || tileRow >= maxRow || tileCol < minCol || tileCol >= maxCol) {
+				//blank tile
+				card.visible = false;
+			} else {
+				//find the image to show on this card - and set UV coords
+				imageRow = tileRow - minRow;
+				imageCol = tileCol - minCol;
+
+				var tileName = imageJSONmap.map[imageRow][imageCol];
+
+				var slabDetails = slabMap[tileName];
+				var slabRow = slabDetails.row;
+				var slabCol = slabDetails.col;
+
+				setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
+				side.geometry.uvsNeedUpdate = true;
+
+				side.userData["imageName"] = tileName;
+				//console.log(side.userData);
+
+				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
+				side.material = slabMaterials[slabName];
+				side.visible = true;
+			}	
+		}
+
+					
+
+		function transform( map, rows, cols, duration ) {
+			//TWEEN.removeAll();
+
+			var duration = duration / 1000;
+			for (r=0; r<rows; r++) {
+				for (c=0; c<cols; c++) {
+					var aCard = map[r][c];
+
+					if ( (r % 2 == 0) && (c % 2 ==0) ) { 
+						//start flip
+						TweenMax.to(aCard.rotation, duration*2, { x: Math.PI} );
+						TweenMax.to(aCard.position, duration*2, { z:1.8 });
+						//que delayed return
+						TweenMax.to(aCard.rotation, duration, { x:0 } ).delay(duration*2);
+						TweenMax.to(aCard.position, duration, { z:0 }).delay(duration*2);						
+
+					} else {
+						TweenMax.to(aCard.rotation, duration*2, { y: Math.PI} ).delay(1);
+						TweenMax.to(aCard.rotation, duration, { y: 0} ).delay(duration*1.5);
+					}							
+				}
+			}
+		}
+
+		var flipStatusTopShowing = true;
+		function randomlyFlipTiles(tline) {
+			tiles = generateShuffledListofAllTiles(rows, cols);
+			//fixme - should this be a simple toggle -- all 0 or all 180?
+			var numSplits = 15;
+			tileSets = splitTiles(tiles, numSplits);
+			for (var i=0; i<numSplits; i++) {
+				for (var t=0; t<tileSets[i].length; t++) {
+					if (flipStatusTopShowing) {
+						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI, overwrite:"auto"}).delay(0.2*i); 
+					} else {
+						TweenMax.to(tileSets[i][t].rotation,2, { y:0, overwrite:"auto"}).delay(0.2*i);
+					}
+				}
+			}
+			flipStatusTopShowing = !flipStatusTopShowing;
+		}
+
+		function generateShuffledListofAllTiles(numRows, numCols) {
+			//returns array of elements
+			list = []
+			for (r=0; r<numRows; r++) {
+				for (c=0; c<numCols; c++) {
+					var tile = map[r][c]; //card is object of the card parent
+					list.push(tile);
+				}
+			}
+			shuffleArray(list);
+			return list;
+		}
+
+		function shuffleArray(array) {
+			//Durstenfeld shuffle, from stackoverflow
+		    for (var i = array.length - 1; i > 0; i--) {
+		        var j = Math.floor(Math.random() * (i + 1));
+		        var temp = array[i];
+		        array[i] = array[j];
+		        array[j] = temp;
+		    }
+		    return array;
+		}
+
+		function splitTiles(tileArray, numSplits) {
+			//split this list into two sublists
+			var tileSets = []; //will return an array of arrays
+			for (var i=0; i<numSplits; i++) { tileSets[i] = []; }
+
+			var toggle = 0;
+			for (var i=0; i<tileArray.length; i++) {
+				(tileSets[toggle]).push(tileArray[i]);
+				toggle = toggle + 1;
+				if (toggle >= numSplits) { toggle = 0; }
+			}
+			return tileSets
+		}
+
+		function doExpandingRingsFrom(r,c) {
+			var rings = []; //will hold sets of tiles, in expanding rings
+			var ringNum = 0;
+			var alreadyUsed = new Set();
+			var startingTile = map[r][c];
+			alreadyUsed.add(startingTile); //consider first point already used
+
+			while (true) {
+				rings[ringNum] = newNeighborsOf(rows, cols, alreadyUsed);
+				//console.log("rings = ", rings[ringNum]);
+				if ((rings[ringNum]).size == 0) break;
+				var tempArr = Array.from(rings[ringNum]);
+				for (var i=0; i<tempArr.length; i++) {
+					alreadyUsed.add(tempArr[i]);  //need a UNION operator!
+				}
+				ringNum = ringNum + 1;
+			}
+			//tline = new TimelineLite({paused:true});
+			for (var r2=0; r2<rings.length; r2++) {
+				//console.log("ring = ", rings[r]);
+				var tempArr = Array.from(rings[r2]);
+				for (var t=0; t<tempArr.length; t++) {
+					//adjust rotation based on direction of the "wave"
+					var rc = inv_map[tempArr[t].id];
+					let card = tempArr[t];
+					//console.log(rc);
+					//var zmag = 2 - (r2*.125);
+					if (rc.col > c ) {
+						var tl = new TimelineLite({delay:0.1*r2, onUpdateParams:[card], onUpdate: function () {
+							if (this.progress() > 0.5) updateOneCardToNextImage(card);
+						}});
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
+						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
+						tl.play();
+
+						//TweenMax.to(tempArr[t].rotation, 2.5, { y:"+=3.1415", overwrite:"auto"}).delay(0.11*r2); 
+						//TweenMax.to(tempArr[t].position, 1.1, { z:1, 
+						//	ease: Power2.easeInOut, overwrite:"auto"}).delay(0.11*r2);
+						//TweenMax.to(tempArr[t].position, .9, { z:0,  
+						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
+					} else {
+						var tl = new TimelineLite({delay:0.1*r2, onUpdateParams:[card], onUpdate: function () {
+							if (this.progress() > 0.5)updateOneCardToNextImage(card);
+						}});
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
+						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
+						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
+						tl.play();
+
+						//TweenMax.to(tempArr[t].rotation, 2.5, { y:"-=3.1415", overwrite:"auto"}).delay(0.18*r2); 
+						//TweenMax.to(tempArr[t].position, 1, { z:1, overwrite:"auto"}).delay(0.18*r2);
+						//TweenMax.to(tempArr[t].position, 1, { z:0, overwrite:"auto"}).delay((0.18*r2)+1); 
+					}
+				}
+			}
+			let card = startingTile;
+			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"auto", onCompleteParams:[card], 
+				onComplete: function () {
+					updateOneCardToNextImage(card);
+			}}); 
+		};					
+
+		function newNeighborsOf(numRows, numCols, currentNeighbors) {
+			//return set of new next-door neighbors of the currentNeighbors set
+			//currNeighbors is a list of Card parent IDs (from map[][])
+
+			function considerPoint(row, col) {
+				//see if point at (row,col) is new. If so, add to newNeighbors
+				//access outer Sets newNeighbors and currentNeighbors
+				var newPoint = map[row][col];
+				//console.log("considering ", newPoint);
+				if ( currentNeighbors.has(newPoint) ) {
+					//console.log("point already in use: ", newPoint);
+					delete newPoint;
+				} else {
+					//console.log("found new point: ", newPoint);
+					newNeighbors.add(newPoint);
+				}
+				return;
+			}
+
+			var newNeighbors = new Set();
+
+			for (let point of currentNeighbors) {  //each point is Object id parent card
+				var rc = inv_map[point.id];
+				//console.log("considering tile = ", point, " with rc = ", rc);
+				var mcol = rc['col'];
+				var mrow = rc['row'];
+				var left = mcol - 1;
+				var right = mcol + 1;
+				var top = mrow - 1;
+				var bot = mrow + 1;
+
+				if (top > -1 && left > -1)				considerPoint(top, left);   //UL
+				if (top > -1 )							considerPoint(top, mcol);   //Above
+				if (top > -1 && right < numCols)		considerPoint(top, right);  //UR
+
+				if (left > -1)        					considerPoint(mrow, left);   //L
+				//center point not considered
+				if (right < numCols)					considerPoint(mrow, right);  //R
+
+				if (bot < numRows && left > -1)			considerPoint(bot, left);    //LL
+				if (bot < numRows )						considerPoint(bot, mcol);    //below
+				if (bot < numRows && right < numCols)	considerPoint(bot, right);   //LR
+			}
+			return newNeighbors;
+		}
+
+		function generateTileIdFromRowCol(row, col) {
+			return "#row_" + row.toString() + "_" + "col_" + col.toString();
+		}
+
+		function getRowColFromTileName(name) {
+			nums = name.match(/\d+/g); //array, row=0, col=1
+			r = parseInt(nums[0]);
+			c = parseInt(nums[1]);
+			return [r,c];
+		}
+
+		function findLineBetweenCards(rowStart, colStart, rowEnd, colEnd) {
+			//from rosettacode.org - Bresenham's line drawing algorithm
+			//returns an array of card address tuples [[r,c], [r,c]...]
+			var x0 = colStart; 
+			var y0 = rowStart;
+			var x1 = colEnd;
+			var y1 = rowEnd;
+  			var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  			var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; 
+  			var err = (dx>dy ? dx : -dy)/2;
+ 
+ 			cardsCoords = [];
+
+  			while (true) {
+    			cardsCoords.push([y0, x0]);
+    			if (x0 === x1 && y0 === y1) break;
+    			var e2 = err;
+    			if (e2 > -dx) { err -= dy; x0 += sx; }
+    			if (e2 < dy) { err += dx; y0 += sy; }
+  			}
+  			return cardsCoords;
+		}
+
+		function doSpiral360() {
+			var midRow = Math.floor(rows / 2);
+			var midCol = Math.floor(cols / 2);
+			var r, c;
+			var cardsInLine = [];
+			var i = 0, j = 0;
+			var allLines = [];
+
+			function filterDups(fullList, newLine) {
+				//eliminate cards already in the fullList (due to low-rez lines)
+				//returns the cleaned up list
+				//wish I could use sets, but can't due to "===" problem
+				var filteredLine = [];
+				for (var l=0; l<newLine.length; l++) {
+					var row = newLine[l][0];
+					var col = newLine[l][1];
+					var found = false;
+					for (var fl=0; fl<fullList.length; fl++) {
+						if (row == fullList[fl][0] && col == fullList[fl][1]) {
+							found = true;
+							//console.log("dup at ", row, col);	
+							break;
+						}
+					}
+					if (!found) filteredLine.push(newLine[l]);
+				}
+				//update the fullList to know about new line
+				for (l=0; l<filteredLine.length; l++) fullList.push(filteredLine[l]);
+				return filteredLine;
+			}
+
+			//quad 1
+			allLines = []; i = 0; cardsInLine = [];
+			for (c=midCol; c<cols; c++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,0,c));
+			}
+			for (r=0; r<midRow; r++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,cols-1));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+			//quad 2
+			i = 0; cardsInLine = [];
+			for (r=midRow; r<rows; r++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,cols-1));
+			}
+			for (c=cols-1; c>=midCol; c--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,rows-1,c));
+			}
+
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}			
+
+			//quad3
+			i = 0; cardsInLine = [];
+			for (c=midCol-1; c>=0; c--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,rows-1,c));
+			}
+			for (r=rows-1; r>midCol; r--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,0));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+			//quad4
+			i = 0; cardsInLine = [];
+			for (r=midRow; r>0; r--) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,r,0));
+			}
+			for (c=0; c<midCol; c++) {
+				cardsInLine[i++] = filterDups(allLines, findLineBetweenCards(midRow,midCol,0,c));
+			}			
+
+			for (i=0; i<cardsInLine.length; i++) {
+				for (j=0; j<cardsInLine[i].length; j++) {
+					doSplineTween360(cardsInLine[i][j][0], cardsInLine[i][j][1],  (0.05*j)+(0.2*i));
+				}
+			}
+
+		}
+
+		function doSplineTween360(rStart, cStart, delay) {
+			//goes all the way around and back to start
+			var tileStart = map[rStart][cStart];
+			//var tileEnd =   map[rEnd][cEnd];
+
+			var midRow = Math.floor(rows / 2);
+			var midCol = Math.floor(cols / 2);
+			midTile = map[midRow][midCol];
+			//curEdges = new THREE.EdgesHelper(midTile.children[0], 0x00ff00);
+			//scene.add( curEdges);
+			var midX = midTile.position.x;
+			var midY = midTile.position.y;
+			var delX = tileStart.position.x - midX;
+			var delY = tileStart.position.y - midY;
+			var rad = Math.sqrt( Math.pow(delX,2) + Math.pow(delY,2) );
+			var delZ = rad/2;
+			
+
+			var pt = [];
+
+			if        (delX > 0 && delY > 0) {
+				pts = [[rad,0], [0,-rad], [-rad,0], [0,rad]];
+			} else if (delX > 0 && delY < 0) {
+				pts = [[0,-rad], [-rad,0], [0,rad], [rad,0]];
+			} else if (delX < 0 && delY < 0) {
+				pts = [[-rad,0], [0,rad], [rad,0], [0,-rad]];
+			} else {
+				pts = [[0,rad], [rad,0], [0,-rad], [-rad,0]];
+			}
+
+			spline = new THREE.CatmullRomCurve3([
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1), //start point
+			    new THREE.Vector3(pts[0][0], pts[0][1] , delZ*0.6), // delZ*0.3), 
+			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*2.0), //delZ*0.6),
+			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*4.0), //delZ*1.0),
+			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*2.0), //delZ*0.7),
+			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
+			    ]);
+
+			let wrapper = {'tile':tileStart, 'curve': spline, curveLoc: 0};
+			TweenLite.to(wrapper, 6, { curveLoc:1, onUpdate: moveAlongSpline, 
+				onUpdateParams:[wrapper], ease: Circ}).delay(delay); 
+
+			//wrapper = {'tile':map[10][10], 'curve': spline, curveLoc: 0};
+			//TweenLite.to(wrapper, 10, { curveLoc:1, onUpdate: moveAlongSpline, onUpdateParams:[wrapper]} ).delay(2); 
+
+			function moveAlongSpline(tileWrapper) {
+				//console.log("tweening with", tileWrapper, tileWrapper.curveLoc);
+				var tile = tileWrapper.tile;
+				var curveLoc = tileWrapper.curveLoc;
+				var spline = tileWrapper.curve;
+				var tangent = new THREE.Vector3();
+				var axis = new THREE.Vector3();
+				var up = new THREE.Vector3(0, 0, 1);
+
+				var pt = spline.getPointAt(curveLoc);
+
+				//tangent = spline.getTangentAt(curveLoc).normalize();
+				//axis.crossVectors(up, tangent).normalize();
+				//var radians = Math.acos(up.dot(tangent));
+
+				tile.position.copy(pt);
+				//tile.rotation.y = curveLoc*3.14159;
+				tile.rotation.x = curveLoc*3.14159;	
+				tile.rotation.z = curveLoc*3.14159;			
+				//tile.quaternion.setFromAxisAngle(axis, radians);
+
+				/*
+				scale = new THREE.Vector3();
+				if (curveLoc < 0.6) {
+					scale.x = (curveLoc / 0.6) + 1;
+					scale.y = (curveLoc / 0.6) + 1;
+					tile.scale = scale;
+				} else {
+					scale.x = (2.0 / 0.6 - 1.0) * (curveLoc - 1);
+					scale.y = (2.0 / 0.6 - 1.0) * (curveLoc - 1);
+					tile.scale = scale;
+				}
+				tile.matrixWorldNeedsUpdate = true;
+				*/
+			}
+
+		}
+
+
+		//window listeners
+
+		window.addEventListener( 'resize', onWindowResize, false );
+		function onWindowResize() {
+
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+
+			renderer.setSize( window.innerWidth, window.innerHeight );
+
+			render();
+
+		}
+
+		document.getElementById("b1").addEventListener("click", function(event) {
+
+			transform( map, rows, cols, 2000 );
+		});
+
+		document.getElementById("b2").addEventListener("click", function(event) {
+			//fixme - needs state + absolute, else gets stuck on rapid clicks
+			//TweenMax.staggerTo($(".s128"), 1, {rotationY:"+=180", yoyo:false}, 0.01);	
+			//var tline = new TimelineLite({paused:true});
+			//var tiles = [];
+
+			randomlyFlipTiles(null);
+			//tline.play();
+		});
+
+		document.getElementById("b3").addEventListener("click", function(event) {
+			var rings = []; //will hold sets of tiles, in expanding rings
+			var ringNum = 0;
+			var alreadyUsed = new Set();
+			var startingTile = map[10][10];
+			alreadyUsed.add(startingTile); //consider first point already used
+
+			while (true) {
+				rings[ringNum] = newNeighborsOf(rows, cols, alreadyUsed);
+				//console.log("rings = ", rings[ringNum]);
+				if ((rings[ringNum]).size == 0) break;
+				var tempArr = Array.from(rings[ringNum]);
+				for (var i=0; i<tempArr.length; i++) {
+					alreadyUsed.add(tempArr[i]);  //need a UNION operator!
+				}
+				ringNum = ringNum + 1;
+			}
+			//tline = new TimelineLite({paused:true});
+			for (var r=0; r<rings.length; r++) {
+				//console.log("ring = ", rings[r]);
+				var tempArr = Array.from(rings[r]);
+				for (var t=0; t<tempArr.length; t++) {
+					//console.log("rotation = ", rings[r][t].rotation);
+					TweenMax.to(tempArr[t].rotation, 2, { y:Math.PI, overwrite:"auto"}).delay(0.1*r); 
+				}
+			}
+			TweenMax.to(startingTile.rotation, 5, { y:Math.PI*5, overwrite:"auto"}); 
+		});			
+
+		document.getElementById("b4").addEventListener("click", function(event) {
+			//spline tweens
+			doSpiral360();
+		});
+
+		document.getElementById("b5").addEventListener("click", function(event) {
+			//test change image textures on the fly
+			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			//changeBackMosaic();
+			loadImageTileMap("IMG_9975", function(data) {
+				var imageMap = data; //set global for now
+				console.log("fetched image map = ", imageMap);
+				loadImageTilesToSide(imageMap);
+			});
+				
+		});
+
+
+		//FIXME - don't want these to be globals
+		var wiMesh = null;
+		var wiMaterial = null;
+		var wiGeometry = null;
+
+		document.getElementById("b6").addEventListener("click", function(event) {
+			//test change image textures on the fly
+			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
+			//changeBackMosaic();
+			
+			var imageName = "IMG_9975";
+			
+			if ( wiMesh == null) {
+
+				loadImageTileMap(imageName, function(data) {
+					var imageMap = data; //set global for now
+					console.log("fetched image map = ", imageMap);
+					//try showing the whole image, non-POT
+					var imageURL = "/image/" + imageName
+					var wholeImage = new THREE.TextureLoader().load(imageURL, 
+						function(texture) {
+							console.log("loaded the texture");
+							texture.minFilter = THREE.LinearFilter;  //prevents POT scaling????
+							wiMaterial = new THREE.MeshBasicMaterial( {  map:texture, side:THREE.FrontSide,
+								transparent:true, opacity:0} ); //, transparent:true, opacity:0.4} );
+
+							wiGeometry = new THREE.PlaneGeometry( imageMap.cols/2, imageMap.rows/2, 1, 1);
+							wiMesh = new THREE.Mesh(wiGeometry, wiMaterial);
+
+							//position may need offset since odd number of rows or cols will cause asymmetrical placement
+							// when the image is assigned to the fixed layout of tiles
+							var rowgap = Math.floor((rows - imageMap.rows) / 2); //note the round-down
+							var colgap =  Math.floor((cols - imageMap.cols) / 2);
+							(colgap % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = 0.25;
+							(rowgap % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = 0.25;
+							wiMesh.position.z = .1;
+
+							scene.add(wiMesh);
+							$("#b6").prop("disabled", true);
+							TweenMax.to(wiMaterial, 2.0, { opacity: 1.0, onComplete: function(){
+								$("#b6").text("Hide Image");
+								$("#b6").prop("disabled", false);						
+							}} );
+						},
+						null,
+						function ( xhr ) {
+							console.log( 'An error happened when loading whole image', xhr );
+						}
+					);
+				});
+
+			} else {
+				$("#b6").prop("disabled", true);
+				TweenMax.to(wiMaterial, 2.0, { opacity: 0, onComplete: function () {
+					//fix me - avoid these globals
+					console.log("complete dimming of image");
+					scene.remove(wiMesh);
+					wiMesh = null;
+					wiMaterial = null;		
+					$("#b6").text("Show Image");
+					$("#b6").prop("disabled", false);
+			} } );
+			}
+		});
+
+
+		renderer.domElement.addEventListener( 'click', function ( event ) {
+			event.preventDefault();
+
+			//see http://jsfiddle.net/fek9ddg5/1/
+			//Canvas must be STATIC and use margin to place
+			mouse.x = ( (event.clientX - renderer.domElement.offsetLeft) / 
+				(renderer.domElement.width)  ) * 2 - 1;
+			mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / 
+				(renderer.domElement.height) ) * 2 + 1;
+			//console.log("client pt = ", event, " scene pt = ", mouse);
+		
+			//raycaster.setFromCamera( mouse, camera );
+			//var intersects = raycaster.intersectObjects( scene.children, true );
+			//if (intersects.length > 0) {
+			//	console.log("HIT = ", intersects[0]);
+			//}
+			handleMouseClick(mouse);
+
+		}, false );
+
+
+
+		var lastObjectHit = null;
+		var imageJSONmap = null; //fixme
+
+		function handleMouseClick(mouse) {
+			
+			//find intersection with a card
+			raycaster.setFromCamera( mouse, camera );
+			var intersects = raycaster.intersectObjects( scene.children, true );
+			
+			if ( intersects.length > 0 ) {
+				var hit = intersects[0];
+				rowcol = inv_map[hit.object.parent.id];
+				console.log("intersected = ", hit, " at rc = ", rowcol);
+				
+				//fixme - what if I don't hit a card?
+				if (typeof rowcol === 'undefined') return;
+
+				//see if we hit a card with an image on it
+				if (hit.object.userData.hasOwnProperty('imageName')) {
+					var imageName = hit.object.userData['imageName'];
+					console.log("preparing to load imageName ", imageName);
+					loadImageTileMap(imageName, function(data) {
+						console.log("loaded JSON map!");
+						imageJSONmap = data; //set global for now
+
+						
+						//if (hit.object.userData['side'] === "front")
+						//	loadImageTilesToSide(imageJSONmap, "back");
+						//else
+						//	loadImageTilesToSide(imageJSONmap, "front");
+
+						//the loaded imageHJSONmap will be used to update tiles on completion of transition
+						doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+					});					
+				} else {
+					//hit a blank card??
+					doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+				}
+			}
+			return
+		}
+
+		var render = function () {
+			renderer.render(scene, camera);
+			stats.update();
+
+		};
+
+		//TweenLite.ticker.addEventListener("tick", render);
+
+		</script>
+	</body>
+</html>
