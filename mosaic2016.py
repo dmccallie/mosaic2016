@@ -75,7 +75,7 @@ def get_slabMap():
 @app.route('/imagemap/<imagename>', methods = ['GET'])
 def get_imageMap(imagename):
 	#load the map of this image's tiles (already in JSON form)
-	imageFile = open("/Users/david/Documents/MosaicTemp/smugmug_dump_tiles/" + imagename + ".json", 'r')
+	imageFile = open("/Users/david/Dropbox/smugmug_dump_tiles/" + imagename + ".json", 'r')
 	#print("returning ", imageFile.read())
 	resp = Response(imageFile.read(), status=200, mimetype='application/json')
 	return(resp)
@@ -85,7 +85,7 @@ def get_imageMap(imagename):
 @app.route('/image/<imagename>', methods = ['GET'])
 def get_image(imagename):
 	#load the map of this image's tiles (already in JSON form)
-	imageFile = open("/Users/david/Documents/MosaicTemp/smugmug_dump_tiles/" + imagename + "-sized.jpg", 'r')
+	imageFile = open("/Users/david/Dropbox/smugmug_dump_tiles/" + imagename + "-sized.jpg", 'r')
 	#print("returning ", imageFile.read())
 	return send_file(imageFile, mimetype='image/jpeg')
 	

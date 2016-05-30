@@ -70,6 +70,7 @@
 		var inv_map = new Map(); //hash maps parent card object to original row and col
 		var slabTextures = new Map(); //index the textures by name
 		var slabMaterials = new Map(); //index the materials for each slab by name
+		//var generation = 0; //track updates to main image. increaed +=1 for each new image
 
 
 		//build the geometry of a card
@@ -98,18 +99,21 @@
 		}
 
 
-		loadImageTextures(textureLoadingManager, textureURLs, startWorld);
+		loadImageTexturesAndMaterials(textureLoadingManager, textureURLs, startWorld);
 
 		var startWorld = function() {
-			//console.log("DONE LOADING!");
 
-
-
-			createLotsOfCardsFromSlabsUV();
+			createLotsOfCards();
 
 			positionLotsofCards(map, rows, cols);
 
-			TweenLite.ticker.addEventListener("tick", render);
+			loadImageTileMap("IMG_9975", function(data){
+				imageJSONmap = data;
+				loadImageTilesToSide(imageJSONmap, "front");
+				TweenLite.ticker.addEventListener("tick", render);
+			});
+
+			//TweenLite.ticker.addEventListener("tick", render);
 
 		}
 
@@ -127,7 +131,7 @@
 			});			
 		}
 
-		function loadImageTextures(loadingManager, listOfURLs) {
+		function loadImageTexturesAndMaterials(loadingManager, listOfURLs) {
 			//for each ULR, load the image into a texture, using the loading manager
 
 			textureLoader = new THREE.TextureLoader(loadingManager);
@@ -137,7 +141,8 @@
 				
 				textureLoader.load(imageURL, 
 					function(texture) {
-						slabTextures[imageURL] = texture;
+						slabTextures[imageURL] = texture; //fixme - not needed?
+						slabMaterials[imageURL] = new THREE.MeshBasicMaterial({map:slabTextures[imageURL], side:THREE.DoubleSide});
 						//console.log("loaded texture ", imageURL);
 					},
 					function ( xhr ) {
@@ -154,21 +159,16 @@
 			}
 		}
 
-		function createLotsOfCardsFromSlabsUV() {
-			//use the preloaded slabs, and create two-sided cards, red and black
-			//just a scaling test for now
-			//assumes all textures have been loaded, but not yet converted to Materials, so do that first.
-			//will have to be re-worked for real code
+		function createLotsOfCards() {
 
 			//create cache of materials, one per slab
 
-			var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
+			//var flipMatrix = new THREE.Matrix4().makeRotationY( Math.PI );
 
-			for (var entry in slabTextures) {
+			//for (var entry in slabTextures) {
 				//slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.FrontSide});
-				slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.DoubleSide});
-
-			}
+			//	slabMaterials[entry] = new THREE.MeshBasicMaterial({map:slabTextures[entry], side:THREE.DoubleSide});
+			//}
 
 			for (var row=0; row<rows; row++) {
 				map[row] = [];
@@ -178,34 +178,27 @@
 				for (var col=0; col<cols; col++) {
 			//for (var col=0; col<cols; col++) {
 				//for (var row=0; row<rows; row++) {
-					var counter = row*cols + col;
-					var slabNumber = Math.floor(counter / tilesPerSlab);
-					var slabOffset = counter - (slabNumber * tilesPerSlab);
-					var slabRow = Math.floor(slabOffset / tilesPerSlabEdge);
-					var slabCol = slabOffset - (slabRow * tilesPerSlabEdge);
+					//var counter = row*cols + col;
+					//var slabNumber = Math.floor(counter / tilesPerSlab);
+					//var slabOffset = counter - (slabNumber * tilesPerSlab);
+					//var slabRow = Math.floor(slabOffset / tilesPerSlabEdge);
+					//var slabCol = slabOffset - (slabRow * tilesPerSlabEdge);
 
 					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
-					setPlaneGeometryUVstoSlabRowCol(frontGeometry, slabRow, slabCol);
-					frontGeometry.uvsNeedUpdate = true;
+					var frontMaterial = new THREE.MeshBasicMaterial({color: 'black'});
 
-					//var backGeometry  = new THREE.PlaneGeometry( 0.5, 0.5);
-					//backGeometry.applyMatrix( flipMatrix );
+					//setPlaneGeometryUVstoSlabRowCol(frontGeometry, slabRow, slabCol);
+					//frontGeometry.uvsNeedUpdate = true;
+		
+					//var slabName = "/static/tiles/slab-" + slabNumber.toString() + ".jpg";
 
-					//need to make this a function of "flipC"
-					//setPlaneGeometryUVstoSlabRowCol(backGeometry, slabRow, slabCol);
-					//backGeometry.uvsNeedUpdate = true;		
-
-
-					var slabName = "/static/tiles/slab-" + slabNumber.toString() + ".jpg";
-
-					var slabRedMaterial = slabMaterials[slabName];
-					var frontMesh = new THREE.Mesh(frontGeometry, slabRedMaterial);
-
-					//var slabBlackMaterial = slabMaterials[slabName];
-					//var backMesh = new THREE.Mesh(backGeometry, slabBlackMaterial);
+					//var slabRedMaterial = slabMaterials[slabName];
+					//var frontMesh = new THREE.Mesh(frontGeometry, slabRedMaterial);
+					var frontMesh = new THREE.Mesh(frontGeometry, frontMaterial);
 
 					var card = new THREE.Object3D();
 					frontMesh.userData = {"side": "front", "row": row, "col": col};
+					frontMesh.visible = false;
 					card.add(frontMesh);
 
 					//backMesh.userData = {"side": "back", "row": row, "col": col};
@@ -259,6 +252,9 @@
 
 		function loadImageTilesToSide(imageJSONmap, whichSide) {
 			//ASSUMES that imageJSONmap has been loaded!
+			//assumes generation is already up to date
+			//only used on initial image??
+
 			var imageName = imageJSONmap.name;
 			var iRows = imageJSONmap.rows;
 			var iCols = imageJSONmap.cols;
@@ -297,7 +293,7 @@
 					//	side = card.children[1];
 					//}					
 					
-					if (r < minRow || r >= maxRow || c < minCol || c >= maxCol) {
+					if (r < minRow || r >= maxRow-1 || c < minCol || c >= maxCol-1) {
 						//blank tile
 						side.visible = false;
 
@@ -317,6 +313,7 @@
 						side.geometry.uvsNeedUpdate = true;
 
 						side.userData["imageName"] = tileName;
+						//side.userData["generation"] = generation;
 						//console.log(side.userData);
 
 						var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
@@ -331,11 +328,13 @@
 			//called when a transition completes
 			//points to the Object3D card that needs update
 			//assumes global imageJSONmap is ready to go!  -- fixme
+			//exit immediately if this card already as the right image!
+
 			var imageName = imageJSONmap.name;
 			var iRows = imageJSONmap.rows;
 			var iCols = imageJSONmap.cols;
 
-			var side = card.children[0]; //only one child - front only
+			var side = card.children[0]; //using only one child now - front only
 
 			//if this card falls within the image, update the geomtry and material to new UV map
 			//otherwise, set card's face to black
@@ -357,9 +356,10 @@
 			tileRow = side.userData.row; //the card's absolute position
 			tileCol = side.userData.col;
 
-			if (tileRow < minRow || tileRow >= maxRow || tileCol < minCol || tileCol >= maxCol) {
+			if (tileRow < minRow || tileRow >= maxRow-1 || tileCol < minCol || tileCol >= maxCol-1) {
 				//blank tile
-				card.visible = false;
+				side.visible = false;
+
 			} else {
 				//find the image to show on this card - and set UV coords
 				imageRow = tileRow - minRow;
@@ -367,7 +367,20 @@
 
 				var tileName = imageJSONmap.map[imageRow][imageCol];
 
+				//if this card is already showing the right card, skip the rest
+				//console.log("compare: current to desired = ", side.userData.imageName, tileName);
+				if (side.userData.imageName === tileName) {
+					//console.log("card already up to date");
+					return;
+				}
+
 				var slabDetails = slabMap[tileName];
+				if (typeof slabDetails === 'undefined') {
+					console.log("failed to find slabMap named ", tileName);
+					console.log("imageJSONmap = ", imageJSONmap);
+					console.log("tile's userData = ", side.userData);
+					console.log("image row/col = ", imageRow, imageCol);
+				}
 				var slabRow = slabDetails.row;
 				var slabCol = slabDetails.col;
 
@@ -375,12 +388,21 @@
 				side.geometry.uvsNeedUpdate = true;
 
 				side.userData["imageName"] = tileName;
-				//console.log(side.userData);
 
 				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
 				side.material = slabMaterials[slabName];
 				side.visible = true;
+
 			}	
+		}
+
+		function resetToNormalLocation(card) {
+			//fixme - not working!
+			var side = card.children[0]; //only one child - front only
+			var normal = new THREE.Vector3(0,3.14159,0);
+			//card.rotation.copy(normal);
+			//card.position.copy(normal);
+
 		}
 
 					
@@ -493,9 +515,9 @@
 					//console.log(rc);
 					//var zmag = 2 - (r2*.125);
 					if (rc.col > c ) {
-						var tl = new TimelineLite({delay:0.1*r2, onUpdateParams:[card], onUpdate: function () {
-							if (this.progress() > 0.5) updateOneCardToNextImage(card);
-						}});
+						var tl = new TimelineLite({delay:0.1*r2, overwrite: "all", onUpdateParams:[card], onUpdate: function () {
+							if (this.progress() > 0.5) updateOneCardToNextImage(card); },
+						onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
@@ -507,9 +529,9 @@
 						//TweenMax.to(tempArr[t].position, .9, { z:0,  
 						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 					} else {
-						var tl = new TimelineLite({delay:0.1*r2, onUpdateParams:[card], onUpdate: function () {
-							if (this.progress() > 0.5)updateOneCardToNextImage(card);
-						}});
+						var tl = new TimelineLite({delay:0.1*r2, overwrite: "all", onUpdateParams:[card], onUpdate: function () {
+							if (this.progress() > 0.5) updateOneCardToNextImage(card);
+						}, onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", delay:"-.7" }));
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:0,  ease: Power2.easeIn, delay:"-1"}));
@@ -522,9 +544,9 @@
 				}
 			}
 			let card = startingTile;
-			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"auto", onCompleteParams:[card], 
-				onComplete: function () {
-					updateOneCardToNextImage(card);
+			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"all", onUpdateParams:[card], 
+				onUpdate: function () {
+					if (this.progress() > 0.3) updateOneCardToNextImage(card);
 			}}); 
 		};					
 
@@ -873,7 +895,12 @@
 			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
 			//changeBackMosaic();
 			
-			var imageName = "IMG_9975";
+			//var imageName = "IMG_9975";
+			if (typeof imageJSONmap === 'undefined') return;
+
+			var imageName = imageJSONmap.name;
+
+			if (typeof imageName === 'undefined') return;
 			
 			if ( wiMesh == null) {
 
@@ -916,9 +943,9 @@
 
 			} else {
 				$("#b6").prop("disabled", true);
-				TweenMax.to(wiMaterial, 2.0, { opacity: 0, onComplete: function () {
+				TweenMax.to(wiMaterial, 1.5, { opacity: 0, onComplete: function () {
 					//fix me - avoid these globals
-					console.log("complete dimming of image");
+					//console.log("complete dimming of image");
 					scene.remove(wiMesh);
 					wiMesh = null;
 					wiMaterial = null;		
