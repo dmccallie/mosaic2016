@@ -258,19 +258,14 @@
 			var imageName = imageJSONmap.name;
 			var iRows = imageJSONmap.rows;
 			var iCols = imageJSONmap.cols;
-			var minRow = 0, maxRow = rows, minCol = 0, maxCol = cols;
+			var minRow, minCol;
 			
-			var gap = Math.floor((rows - iRows) / 2);
-			if (gap > 0) {
-				minRow = gap;
-				maxRow = rows - gap -1;
-			}
+			var gapRows = Math.floor((rows - iRows) / 2);
+			firstRow = gapRows;
 			
-			gap =  Math.floor((cols - iCols) / 2);
-			if (gap > 0) {
-				minCol = gap;
-				maxCol = cols - gap -1;
-			}
+			var gapCols =  Math.floor((cols - iCols) / 2);
+			firstCol = gapCols;
+
 
 			//if (typeof whichSide === 'undefined') whichSide = "front";
 			whichSide = "front";
@@ -293,15 +288,15 @@
 					//	side = card.children[1];
 					//}					
 					
-					if (r < minRow || r >= maxRow-1 || c < minCol || c >= maxCol-1) {
+					if (r < firstRow || r > firstRow + iRows - 1  || c < firstCol || c > firstCol + iCols - 1) {
 						//blank tile
 						side.visible = false;
 
 					} else {
 
 
-						imageRow = r - minRow;
-						imageCol = c - minCol;
+						imageRow = r - firstRow;
+						imageCol = c - firstCol;
 
 						var tileName = imageJSONmap.map[imageRow][imageCol];
 
@@ -333,37 +328,33 @@
 			var imageName = imageJSONmap.name;
 			var iRows = imageJSONmap.rows;
 			var iCols = imageJSONmap.cols;
+			var minRow, minCol;
+			
+			var gapRows = Math.floor((rows - iRows) / 2);
+			firstRow = gapRows;
+			
+			var gapCols =  Math.floor((cols - iCols) / 2);
+			firstCol = gapCols;
 
 			var side = card.children[0]; //using only one child now - front only
 
 			//if this card falls within the image, update the geomtry and material to new UV map
 			//otherwise, set card's face to black
 			
-			var minRow = 0, maxRow = rows, minCol = 0, maxCol = cols;
-			var gap = Math.floor((rows - iRows) / 2);
-			if (gap > 0) {
-				minRow = gap;
-				maxRow = rows - gap -1;
-			}
-			
-			gap =  Math.floor((cols - iCols) / 2);
-			if (gap > 0) {
-				minCol = gap;
-				maxCol = cols - gap -1;
-			}
-
 			//decode which card this is from userData of the (front) Mesh
 			tileRow = side.userData.row; //the card's absolute position
 			tileCol = side.userData.col;
 
-			if (tileRow < minRow || tileRow >= maxRow-1 || tileCol < minCol || tileCol >= maxCol-1) {
-				//blank tile
+			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
+				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
+				//blank this tile
 				side.visible = false;
 
 			} else {
+
 				//find the image to show on this card - and set UV coords
-				imageRow = tileRow - minRow;
-				imageCol = tileCol - minCol;
+				imageRow = tileRow - firstRow;
+				imageCol = tileCol - firstCol;
 
 				var tileName = imageJSONmap.map[imageRow][imageCol];
 
@@ -440,7 +431,7 @@
 			for (var i=0; i<numSplits; i++) {
 				for (var t=0; t<tileSets[i].length; t++) {
 					if (flipStatusTopShowing) {
-						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI, overwrite:"auto"}).delay(0.2*i); 
+						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI, overwrite:"auto",}).delay(0.2*i); 
 					} else {
 						TweenMax.to(tileSets[i][t].rotation,2, { y:0, overwrite:"auto"}).delay(0.2*i);
 					}
@@ -630,7 +621,8 @@
   			return cardsCoords;
 		}
 
-		function doSpiral360() {
+		function doSpiral360(row, col) {
+			//assumes that next image has been loaded
 			var midRow = Math.floor(rows / 2);
 			var midCol = Math.floor(cols / 2);
 			var r, c;
@@ -788,7 +780,12 @@
 				tile.position.copy(pt);
 				//tile.rotation.y = curveLoc*3.14159;
 				tile.rotation.x = curveLoc*3.14159;	
-				tile.rotation.z = curveLoc*3.14159;			
+				tile.rotation.z = curveLoc*3.14159;		
+
+				//is it time to flip to the landing tile image?
+
+				if (this.progress() > 0.5) updateOneCardToNextImage(tile);
+
 				//tile.quaternion.setFromAxisAngle(axis, radians);
 
 				/*
@@ -923,9 +920,11 @@
 							// when the image is assigned to the fixed layout of tiles
 							var rowgap = Math.floor((rows - imageMap.rows) / 2); //note the round-down
 							var colgap =  Math.floor((cols - imageMap.cols) / 2);
-							(colgap % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = 0.25;
-							(rowgap % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = 0.25;
-							wiMesh.position.z = .1;
+							//(colgap % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = 0.25;
+							//(rowgap % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = 0.25;
+							(imageMap.cols % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = .25;
+							(imageMap.rows % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = .25;
+							wiMesh.position.z = .2;
 
 							scene.add(wiMesh);
 							$("#b6").prop("disabled", true);
@@ -1010,7 +1009,8 @@
 						//	loadImageTilesToSide(imageJSONmap, "front");
 
 						//the loaded imageHJSONmap will be used to update tiles on completion of transition
-						doExpandingRingsFrom(rowcol['row'], rowcol['col']);
+						doSpiral360(rowcol['row'], rowcol['col']);
+						//doExpandingRingsFrom(rowcol['row'], rowcol['col']);
 					});					
 				} else {
 					//hit a blank card??
