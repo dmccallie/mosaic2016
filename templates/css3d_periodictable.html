@@ -301,6 +301,7 @@
 
 					var phi = Math.acos( -1 + ( 2 * i ) / l );
 					var theta = Math.sqrt( l * Math.PI ) * phi;
+					console.log("l, i, phi, theta", l, i, phi, theta, phi*180/Math.PI, (theta*180/Math.PI) % 360, Math.cos(theta)  );
 
 					var object = new THREE.Object3D();
 
@@ -310,6 +311,7 @@
 
 					vector.copy( object.position ).multiplyScalar( 2 );
 
+					//object.lookAt( new THREE.Vector3(0,0,0));
 					object.lookAt( vector );
 
 					targets.sphere.push( object );

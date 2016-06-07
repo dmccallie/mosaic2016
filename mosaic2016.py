@@ -6,9 +6,9 @@ from flask import send_file
 
 app = Flask(__name__)
 
-@app.route('/mosaic2016')
-def mosaic2016():
-	return render_template('index.html')
+#@app.route('/mosaic2016')
+#def mosaic2016():
+#	return render_template('index.html')
 
 @app.route('/generate')
 def generate():
@@ -62,6 +62,10 @@ def cardsTweenSlabsUV():
 @app.route('/mosaicOneSide')
 def mosaicOneSide():
 	return render_template('mosaicOneSide.html')
+
+@app.route('/mosaic2016')
+def mosaic2016():
+	return render_template('mosaic2016.html')
 
 @app.route('/slabmap', methods = ['GET'])
 def get_slabMap():
