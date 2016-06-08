@@ -204,7 +204,7 @@
 
 
 					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
-					var frontMaterial = new THREE.MeshBasicMaterial({color: 'black'});
+					var frontMaterial = new THREE.MeshBasicMaterial({color: 'black', transparent: true});
 
 					var frontMesh = new THREE.Mesh(frontGeometry, frontMaterial);
 
@@ -333,7 +333,8 @@
 		}
 
 		function updateOneCardToNextImage(card, percentComplete) {
-			//called when a transition completes
+			//usually called repeatedly during tween.
+			//fade current image away and then fade in new image
 			//points to the Object3D card that needs update
 			//assumes global imageJSONmap is ready to go!  -- fixme
 			//exit immediately if this card already as the right image!
@@ -343,7 +344,7 @@
 			var iCols = imageJSONmap.cols;
 			var minRow, minCol;
 
-			if (typeof percentComplete === 'undefined') var percentComplete = 1.0;
+			//if (typeof percentComplete === 'undefined') var percentComplete = 1.0;
 			
 			var gapRows = Math.floor((rows - iRows) / 2);
 			firstRow = gapRows;
@@ -362,8 +363,13 @@
 
 			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
 				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
-				//blank this tile
-				side.visible = false;
+				//fade this tile out, over the whole percentComplete cycle (to 90%)
+				if (percentComplete < 0.9) {
+					side.material.opacity = 1.0 - percentComplete;
+				} else {
+					side.visible = false;
+					side.material.opacity = 1; //hidden, but reset to 1?
+				}
 
 			} else {
 
@@ -377,12 +383,21 @@
 				//console.log("compare: current to desired = ", side.userData.imageName, tileName);
 				if (side.userData.imageName === tileName) {
 					//console.log("card already up to date");
-					if (percentComplete < 1.0) {
-						side.opacity = percentComplete;
+					if (percentComplete < 0.5) {
+						side.material.opacity = 1.0 - percentComplete; //fixme - just leave it at 1 for whole cycle?
+					} else {
+						side.material.opacity = percentComplete;
 					}
 					return;
 				}
 
+				// fade out old card, as progress goes to 0.5
+				if (percentComplete < 0.5) {
+					side.material.opacity = 1.0 - 2 * percentComplete;
+					return;
+				}
+
+				// then fade in new card
 				var slabDetails = slabMap[tileName];
 				if (typeof slabDetails === 'undefined') {
 					console.log("failed to find slabMap named ", tileName);
@@ -401,6 +416,7 @@
 				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
 				side.material = slabMaterials[slabName];
 				side.visible = true;
+				side.material.opacity = (percentComplete - 0.5) * 2;
 
 			}	
 		}
@@ -439,7 +455,7 @@
 						TweenMax.to(aCard.position, duration, { z:0,
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImage(card, p); },
+								updateOneCardToNextImage(card, p); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						 }).delay(duration*2);						
@@ -450,7 +466,7 @@
 						TweenMax.to(aCard.rotation, duration, { y: 0,
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImage(card, p); },
+								updateOneCardToNextImage(card, p); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						 }).delay(duration*1.5);
@@ -472,14 +488,16 @@
 					if (flipStatusIsFlipped) {
 						TweenMax.to(tileSets[i][t].rotation,2, { y:0, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
-								if (this.progress() > 0.5) updateOneCardToNextImage(card); },
+								let p = this.progress();
+								updateOneCardToNextImage(card,p); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						}).delay(0.2*i); 
 					} else {
 						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI*2, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
-								if (this.progress() > 0.5) updateOneCardToNextImage(card); },
+								let p = this.progress();
+								updateOneCardToNextImage(card, p); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }							
 						}).delay(0.2*i);
@@ -556,7 +574,8 @@
 					//var zmag = 2 - (r2*.125);
 					if (rc.col > c ) {
 						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
-							if (this.progress() > 0.5) updateOneCardToNextImage(card); },
+							let p = this.progress();
+							updateOneCardToNextImage(card, p); },
 						onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -570,7 +589,8 @@
 						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 					} else {
 						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
-							if (this.progress() > 0.5) updateOneCardToNextImage(card);
+							let p = this.progress();
+							updateOneCardToNextImage(card, p);
 						}, onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -833,7 +853,9 @@
 
 				//is it time to flip to the landing tile image?
 
-				if (this.progress() > 0.5) updateOneCardToNextImage(tile);
+				//if (this.progress() > 0.5) updateOneCardToNextImage(tile);
+				let p = this.progress();
+				updateOneCardToNextImage(tile, p);
 
 				//tile.quaternion.setFromAxisAngle(axis, radians);
 
@@ -870,7 +892,7 @@
 				for (var c=0; c<cols; c++) {
 					let card = map[r][c];
 					//map to the new image
-					updateOneCardToNextImage(card, 1.0);
+					//updateOneCardToNextImage(card, 1.0);
 					//if the card is still visible, add to list
 					if (card.children[0].visible) visibleCards.push(card);
 				}
@@ -899,9 +921,13 @@
 				object.lookAt( vector );
 
 				let aCard = visibleCards[i];
-				TweenMax.to(aCard.position, 6, { x: object.position.x, y: object.position.y, z:object.position.z, ease: Power2.easeInOut});
-				TweenMax.to(aCard.rotation, 6, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z, ease: Power2.easeInOut});
-				TweenMax.to(aCard.scale, 6, { x:1.2, y:1.2, ease: Power2.easeInOut});
+				TweenMax.to(aCard.position, 16, { x: object.position.x, y: object.position.y, z:object.position.z, ease: Power2.easeInOut,
+					onUpdateParams:[aCard], onUpdate: function () {
+							let p = this.progress();
+							updateOneCardToNextImage(aCard, p);} 
+					});
+				TweenMax.to(aCard.rotation, 16, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z, ease: Power2.easeInOut});
+				TweenMax.to(aCard.scale, 16, { x:1.2, y:1.2, ease: Power2.easeInOut});
 
 			}
 			autoRotateSpeed = 1.6;
@@ -928,21 +954,22 @@
 					//get initial position 
 					var origPos = new THREE.Vector3().copy(card.userData['initialPosition']);
 					//tween there, updating to new image in mid-tween
-					TweenMax.to(card.position, 6, { x: origPos.x, y:origPos.y, z:origPos.z, overwrite:"auto",
+					TweenMax.to(card.position, 16, { x: origPos.x, y:origPos.y, z:origPos.z, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
-								if (this.progress() > 0.6) updateOneCardToNextImage(card); },
+								let p = this.progress();
+								updateOneCardToNextImage(card, p); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 					});
-					TweenMax.to(card.rotation, 3, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(4);
-					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"auto", 
+					TweenMax.to(card.rotation, 13, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(4);
+					TweenMax.to(card.scale, 16, {x: 1, y: 1, overwrite:"auto", 
 						onComplete: function() { 
 								//autoRotateSpeed = 0;
 								//camera.position.z = 35;
 								//camera.position.y = 0; //-13;
 								//camera.position.x = 0;
 						}
-					}).delay(5);				
+					});				
 				}
 			}
 			sphereIsDisplayed = false;
