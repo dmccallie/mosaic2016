@@ -332,7 +332,98 @@
 			}		
 		}
 
-		function updateOneCardToNextImage(card, percentComplete) {
+		function isCardIncludedInThisImageMap(imageJmap, card) {
+			//return true/false if this tile is included in the listed imageJSONmap
+			var iRows = imageJmap.rows;
+			var iCols = imageJmap.cols;
+			var minRow, minCol;
+			
+			var firstRow = Math.floor((rows - iRows) / 2);
+			var firstCol =  Math.floor((cols - iCols) / 2);
+
+			var side = card.children[0]; //using only one child now - front only
+			
+			tileRow = side.userData.row; //the card's absolute position
+			tileCol = side.userData.col;
+
+			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
+				tileCol < firstCol || tileCol > firstCol + iCols - 1)    {
+					return false;  //card not in the specificed imagemap
+			}
+			return true;
+		}
+
+		function updateOneCardToNextImageSudden(card) {
+			//usually called repeatedly during tween.
+			//points to the Object3D card that needs update
+			//assumes global imageJSONmap is ready to go!  -- fixme
+
+			var imageName = imageJSONmap.name;
+			var iRows = imageJSONmap.rows;
+			var iCols = imageJSONmap.cols;
+			var minRow, minCol;
+			
+			var gapRows = Math.floor((rows - iRows) / 2);
+			firstRow = gapRows;
+			
+			var gapCols =  Math.floor((cols - iCols) / 2);
+			firstCol = gapCols;
+
+			var side = card.children[0]; //using only one child now - front only
+
+			//if this card falls within the image, update the geomtry and material to new UV map
+			//otherwise, set card's face to black
+			
+			//decode which card this is from userData of the (front) Mesh
+			tileRow = side.userData.row; //the card's absolute position
+			tileCol = side.userData.col;
+
+			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
+				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
+					side.visible = false;
+
+			} else {
+
+				//find the image to show on this card - and set UV coords
+				imageRow = tileRow - firstRow;
+				imageCol = tileCol - firstCol;
+
+				var tileName = imageJSONmap.map[imageRow][imageCol];
+
+				//if this card is already showing the right card, skip the rest
+				//console.log("compare: current to desired = ", side.userData.imageName, tileName);
+				if (side.userData.imageName === tileName) {
+					return;
+				}
+
+
+				var slabDetails = slabMap[tileName];
+				if (typeof slabDetails === 'undefined') {
+					console.log("failed to find slabMap named ", tileName);
+					console.log("imageJSONmap = ", imageJSONmap);
+					console.log("tile's userData = ", side.userData);
+					console.log("image row/col = ", imageRow, imageCol);
+				}
+				var slabRow = slabDetails.row;
+				var slabCol = slabDetails.col;
+
+				setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
+				side.geometry.uvsNeedUpdate = true;
+
+				side.userData["imageName"] = tileName;
+
+				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
+				side.material = slabMaterials[slabName];
+
+				side.material.transparent = true;
+				side.material.opacity = 1;
+
+				side.visible = true;
+
+			}	
+		}
+
+		function updateOneCardToNextImageGradual(card, percentComplete) {
 			//usually called repeatedly during tween.
 			//fade current image away and then fade in new image
 			//points to the Object3D card that needs update
@@ -365,10 +456,11 @@
 				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
 				//fade this tile out, over the whole percentComplete cycle (to 90%)
 				if (percentComplete < 0.9) {
+					side.material.transparent = true;
 					side.material.opacity = 1.0 - percentComplete;
 				} else {
+					//side.material.opacity = 1; //hidden, but reset to 1?
 					side.visible = false;
-					side.material.opacity = 1; //hidden, but reset to 1?
 				}
 
 			} else {
@@ -384,8 +476,10 @@
 				if (side.userData.imageName === tileName) {
 					//console.log("card already up to date");
 					if (percentComplete < 0.5) {
+						side.material.transparent = true;
 						side.material.opacity = 1.0 - percentComplete; //fixme - just leave it at 1 for whole cycle?
 					} else {
+						side.material.transparent = true;
 						side.material.opacity = percentComplete;
 					}
 					return;
@@ -393,7 +487,8 @@
 
 				// fade out old card, as progress goes to 0.5
 				if (percentComplete < 0.5) {
-					side.material.opacity = 1.0 - 2 * percentComplete;
+					side.material.transparent = true;
+					side.material.opacity = 1.0 - (2 * percentComplete);
 					return;
 				}
 
@@ -415,8 +510,11 @@
 
 				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
 				side.material = slabMaterials[slabName];
-				side.visible = true;
+
+				side.material.transparent = true;
 				side.material.opacity = (percentComplete - 0.5) * 2;
+
+				side.visible = true;
 
 			}	
 		}
@@ -455,7 +553,7 @@
 						TweenMax.to(aCard.position, duration, { z:0,
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								updateOneCardToNextImage(card, p); },
+								if (p > 0.5) updateOneCardToNextImageSudden(card); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						 }).delay(duration*2);						
@@ -466,7 +564,7 @@
 						TweenMax.to(aCard.rotation, duration, { y: 0,
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								updateOneCardToNextImage(card, p); },
+								if (p > 0.5) updateOneCardToNextImageSudden(card); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						 }).delay(duration*1.5);
@@ -489,7 +587,7 @@
 						TweenMax.to(tileSets[i][t].rotation,2, { y:0, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								updateOneCardToNextImage(card,p); },
+								if (p > 0.5) updateOneCardToNextImageSudden(card); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						}).delay(0.2*i); 
@@ -497,7 +595,7 @@
 						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI*2, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								updateOneCardToNextImage(card, p); },
+								if (p > 0.5) updateOneCardToNextImageSudden(card); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }							
 						}).delay(0.2*i);
@@ -575,7 +673,7 @@
 					if (rc.col > c ) {
 						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
 							let p = this.progress();
-							updateOneCardToNextImage(card, p); },
+							if (p > 0.5) updateOneCardToNextImageSudden(card); },
 						onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -590,7 +688,7 @@
 					} else {
 						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
 							let p = this.progress();
-							updateOneCardToNextImage(card, p);
+							if (p > 0.5) updateOneCardToNextImageSudden(card);
 						}, onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -606,7 +704,7 @@
 			let card = startingTile;
 			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"all", onUpdateParams:[card], 
 				onUpdate: function () {
-					if (this.progress() > 0.3) updateOneCardToNextImage(card);
+					if (this.progress() > 0.3) updateOneCardToNextImageSudden(card);
 			}}); 
 		};					
 
@@ -855,7 +953,7 @@
 
 				//if (this.progress() > 0.5) updateOneCardToNextImage(tile);
 				let p = this.progress();
-				updateOneCardToNextImage(tile, p);
+				if (p > 0.5) updateOneCardToNextImageSudden(tile);
 
 				//tile.quaternion.setFromAxisAngle(axis, radians);
 
@@ -887,23 +985,23 @@
 			var object = new THREE.Object3D();
 			var radius = 7;
 
-			var visibleCards = [];
+			var visibleCards = []; //these go into sphere
+			var inVisibleCards = []; //these go away
+
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
 					let card = map[r][c];
-					//map to the new image
-					//updateOneCardToNextImage(card, 1.0);
-					//if the card is still visible, add to list
-					if (card.children[0].visible) visibleCards.push(card);
+					if (isCardIncludedInThisImageMap(imageJSONmap, card))
+						//yes, this card goes into the sphere
+						visibleCards.push(card);
+					else 
+						//no, card fades away
+						inVisibleCards.push(card);
 				}
 			}
 
-			//filter cards to only those visible
-			//var visibleCards = [];
-			//for (var i = 0; i<cards.length; i++) {
-			//	if (cards[i].children[0].visible) visibleCards.push(cards[i]);
-			//}
 			console.log("visible cards = ", visibleCards.length);
+			console.log("INvisible cards = ", inVisibleCards.length);
 
 			for ( var i = 0, l = visibleCards.length; i < l; i ++ ) {
 
@@ -924,12 +1022,23 @@
 				TweenMax.to(aCard.position, 16, { x: object.position.x, y: object.position.y, z:object.position.z, ease: Power2.easeInOut,
 					onUpdateParams:[aCard], onUpdate: function () {
 							let p = this.progress();
-							updateOneCardToNextImage(aCard, p);} 
+							if (p > 0.5) updateOneCardToNextImageSudden(aCard);} 
 					});
 				TweenMax.to(aCard.rotation, 16, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z, ease: Power2.easeInOut});
 				TweenMax.to(aCard.scale, 16, { x:1.2, y:1.2, ease: Power2.easeInOut});
 
 			}
+
+			//and remove the no longer needed cards
+			for (i=0; i<inVisibleCards.length; i++) {
+				let bCard = inVisibleCards[i];
+				TweenMax.to(bCard.children[0].material, 8, { opacity: 0, ease: Power2.easeInOut, 
+					onCompleteParams:[bCard], onComplete: function() { 
+								bCard.visible = false;
+					}}
+				);	
+			}
+
 			autoRotateSpeed = 1.6;
 			sphereIsDisplayed = true;
 
@@ -940,7 +1049,7 @@
 			//assumes JSONmap has been fetched already
 
 			//for each potential tile, tween to proper location, updating the tile to new image (or to black)
-			autoRotateSpeed = 0;
+			autoRotateSpeed = 0; //fixme - too sudden!
 			camera.position.z = 35;
 			camera.position.y = 0; //-13;
 			camera.position.x = 0;
@@ -957,7 +1066,7 @@
 					TweenMax.to(card.position, 16, { x: origPos.x, y:origPos.y, z:origPos.z, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
-								updateOneCardToNextImage(card, p); },
+								if (p > 0.5) updateOneCardToNextImageSudden(card); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 					});
@@ -1066,37 +1175,6 @@
 
 		}
 
-		//document.getElementById("b1").addEventListener("click", function(event) {
-
-		//	transform( map, rows, cols, 2000 );
-		//});
-
-		//document.getElementById("b2").addEventListener("click", function(event) {
-
-		//	randomlyFlipTiles(null);
-
-		//});
-
-		//document.getElementById("b3").addEventListener("click", function(event) {
-		//	//doExpandingRingsFrom(rowcol['row'], rowcol['col'])
-		//});			
-
-		//document.getElementById("b4").addEventListener("click", function(event) {
-			//spline tweens
-		//	doSpiral360();
-		//});
-
-		//document.getElementById("b5").addEventListener("click", function(event) {
-			//test change image textures on the fly
-			//changeFaceOfCard(imageTextures["/static/IMG_3098-256.jpg"], map[1][1], "front");
-			//changeBackMosaic();
-		//	loadImageTileMap("IMG_9975", function(data) {
-		//		var imageMap = data; //set global for now
-		//		console.log("fetched image map = ", imageMap);
-		//		loadImageTilesToSide(imageMap);
-		//	});
-				
-		//});
 
 
 		//FIXME - don't want these to be globals
@@ -1182,6 +1260,23 @@
 
 		var lastObjectHit = null;
 		var imageJSONmap = null; //fixme
+		var priorImageJSONmap = null;
+
+		function copyImageJSONmap(originalMap) {
+			//deep copy
+			newJSONmap = {};
+			newJSONmap.name = originalMap.name;
+			newJSONmap.rows = originalMap.rows;
+			newJSONmap.cols = originalMap.cols;
+			newJSONmap.map = [];
+			for (var r=0; r<originalMap.rows; r++) {
+				newJSONmap.map[r] = [];
+				for (var c=0; c<originalMap.cols; c++) {
+					newJSONmap.map[r][c] = originalMap.map[r][c];
+				}
+			}
+			return newJSONmap;
+		}
 
 		function handleMouseClick(mouse) {
 			
@@ -1201,6 +1296,10 @@
 				if (hit.object.userData.hasOwnProperty('imageName')) {
 					var imageName = hit.object.userData['imageName'];
 					console.log("preparing to load imageName ", imageName);
+					
+					//save current as prior, in case we need it for transition
+					priorImageJSONmap = copyImageJSONmap(imageJSONmap);
+
 					loadImageTileMap(imageName, function(data) {
 						console.log("loaded JSON map!");
 						imageJSONmap = data; //set global for now
