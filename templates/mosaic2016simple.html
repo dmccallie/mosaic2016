@@ -144,7 +144,7 @@
 
 			loadImageTileMap("IMG_0510", function(data){
 				imageJSONmap = data;
-				loadImageTilesToSide(imageJSONmap, "front");
+				loadImageTilesToSide(imageJSONmap);  //fixme - use the global?
 				TweenLite.ticker.addEventListener("tick", render);
 			});
 
@@ -208,12 +208,12 @@
 					var frontGeometry = new THREE.PlaneGeometry( 0.5, 0.5);
 					var frontMaterial = new THREE.MeshBasicMaterial({color: 'black', transparent: true});
 
-					var frontMesh = new THREE.Mesh(frontGeometry, frontMaterial);
+					var card = new THREE.Mesh(frontGeometry, frontMaterial);
 
-					var card = new THREE.Object3D();
-					frontMesh.userData = {"side": "front", "row": row, "col": col};
+					//var card = new THREE.Object3D();
+					card.userData = {"side": "front", "row": row, "col": col};
 					//frontMesh.visible = false;
-					card.add(frontMesh);
+					//card.add(frontMesh);
 
 					
 					map[row][col] = card;
@@ -266,9 +266,8 @@
 			}
 		}
 
-		function loadImageTilesToSide(imageJSONmap, whichSide) {
+		function loadImageTilesToSide(imageJSONmap) {
 			//ASSUMES that imageJSONmap has been loaded!
-			//assumes generation is already up to date
 			//only used on initial image??
 
 			var imageName = imageJSONmap.name;
@@ -283,34 +282,19 @@
 			firstCol = gapCols;
 
 
-			//if (typeof whichSide === 'undefined') whichSide = "front";
-			whichSide = "front";
-
-
 			var imageRow = 0, imageCol = 0;
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
 					//var flipC = iCols - c - 1;
 
 					var card = map[r][c];
-					var side = null;
 
-					if (whichSide === "front")  {
-						side = card.children[0];  //always safe that front is child 0 ??? FIXME
-						//console.log("prepared to load image to FRONT side ", side);
-					} 
-					//else {
-
-					//	side = card.children[1];
-					//}					
-					
 					if (r < firstRow || r > firstRow + iRows - 1  || c < firstCol || c > firstCol + iCols - 1) {
 						//blank tile
 						//side.visible = false;
 						card.visible = false;
 
 					} else {
-
 
 						imageRow = r - firstRow;
 						imageCol = c - firstCol;
@@ -321,15 +305,15 @@
 						var slabRow = slabDetails.row;
 						var slabCol = slabDetails.col;
 
-						setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
-						side.geometry.uvsNeedUpdate = true;
+						setPlaneGeometryUVstoSlabRowCol(card.geometry, slabRow, slabCol);
+						card.geometry.uvsNeedUpdate = true;
 
-						side.userData["imageName"] = tileName;
+						card.userData["imageName"] = tileName;
 						//side.userData["generation"] = generation;
 						//console.log(side.userData);
 
 						var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
-						side.material = slabMaterials[slabName];
+						card.material = slabMaterials[slabName];
 						//side.visible = true;
 						card.visible = true;
 					}
@@ -345,11 +329,9 @@
 			
 			var firstRow = Math.floor((rows - iRows) / 2);
 			var firstCol =  Math.floor((cols - iCols) / 2);
-
-			var side = card.children[0]; //using only one child now - front only
 			
-			tileRow = side.userData.row; //the card's absolute position
-			tileCol = side.userData.col;
+			tileRow = card.userData.row; //the card's absolute position
+			tileCol = card.userData.col;
 
 			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
 				tileCol < firstCol || tileCol > firstCol + iCols - 1)    {
@@ -374,14 +356,12 @@
 			var gapCols =  Math.floor((cols - iCols) / 2);
 			firstCol = gapCols;
 
-			var side = card.children[0]; //using only one child now - front only
-
 			//if this card falls within the image, update the geomtry and material to new UV map
 			//otherwise, set card's face to black
 			
 			//decode which card this is from userData of the (front) Mesh
-			tileRow = side.userData.row; //the card's absolute position
-			tileCol = side.userData.col;
+			tileRow = card.userData.row; //the card's absolute position
+			tileCol = card.userData.col;
 
 			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
 				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
@@ -398,7 +378,7 @@
 
 				//if this card is already showing the right card, skip the rest
 				//console.log("compare: current to desired = ", side.userData.imageName, tileName);
-				if (side.userData.imageName === tileName) {
+				if (card.userData.imageName === tileName) {
 					return;
 				}
 
@@ -413,129 +393,26 @@
 				var slabRow = slabDetails.row;
 				var slabCol = slabDetails.col;
 
-				setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
-				side.geometry.uvsNeedUpdate = true;
+				setPlaneGeometryUVstoSlabRowCol(card.geometry, slabRow, slabCol);
+				card.geometry.uvsNeedUpdate = true;
 
-				side.userData["imageName"] = tileName;
+				card.userData["imageName"] = tileName;
 
 				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
-				side.material = slabMaterials[slabName];
+				card.material = slabMaterials[slabName];
 
-				side.material.transparent = true;
-				side.material.opacity = 1;
+				card.material.transparent = true;
+				card.material.opacity = 1;
 
-				//side.visible = true;
 				card.visible = true;
 
 			}	
 		}
 
-		function updateOneCardToNextImageGradual(card, percentComplete) {
-			//usually called repeatedly during tween.
-			//fade current image away and then fade in new image
-			//points to the Object3D card that needs update
-			//assumes global imageJSONmap is ready to go!  -- fixme
-			//exit immediately if this card already as the right image!
-
-			var imageName = imageJSONmap.name;
-			var iRows = imageJSONmap.rows;
-			var iCols = imageJSONmap.cols;
-			var minRow, minCol;
-
-			//if (typeof percentComplete === 'undefined') var percentComplete = 1.0;
-			
-			var gapRows = Math.floor((rows - iRows) / 2);
-			firstRow = gapRows;
-			
-			var gapCols =  Math.floor((cols - iCols) / 2);
-			firstCol = gapCols;
-
-			var side = card.children[0]; //using only one child now - front only
-
-			//if this card falls within the image, update the geomtry and material to new UV map
-			//otherwise, set card's face to black
-			
-			//decode which card this is from userData of the (front) Mesh
-			tileRow = side.userData.row; //the card's absolute position
-			tileCol = side.userData.col;
-
-			if (tileRow < firstRow || tileRow > firstRow + iRows - 1 ||
-				tileCol < firstCol || tileCol > firstCol + iCols -1)    {
-				//fade this tile out, over the whole percentComplete cycle (to 90%)
-				if (percentComplete < 0.9) {
-					side.material.transparent = true;
-					side.material.opacity = 1.0 - percentComplete;
-				} else {
-					//side.material.opacity = 1; //hidden, but reset to 1?
-					side.visible = false;
-				}
-
-			} else {
-
-				//find the image to show on this card - and set UV coords
-				imageRow = tileRow - firstRow;
-				imageCol = tileCol - firstCol;
-
-				var tileName = imageJSONmap.map[imageRow][imageCol];
-
-				//if this card is already showing the right card, skip the rest
-				//console.log("compare: current to desired = ", side.userData.imageName, tileName);
-				if (side.userData.imageName === tileName) {
-					//console.log("card already up to date");
-					if (percentComplete < 0.5) {
-						side.material.transparent = true;
-						side.material.opacity = 1.0 - percentComplete; //fixme - just leave it at 1 for whole cycle?
-					} else {
-						side.material.transparent = true;
-						side.material.opacity = percentComplete;
-					}
-					return;
-				}
-
-				// fade out old card, as progress goes to 0.5
-				if (percentComplete < 0.5) {
-					side.material.transparent = true;
-					side.material.opacity = 1.0 - (2 * percentComplete);
-					return;
-				}
-
-				// then fade in new card
-				var slabDetails = slabMap[tileName];
-				if (typeof slabDetails === 'undefined') {
-					console.log("failed to find slabMap named ", tileName);
-					console.log("imageJSONmap = ", imageJSONmap);
-					console.log("tile's userData = ", side.userData);
-					console.log("image row/col = ", imageRow, imageCol);
-				}
-				var slabRow = slabDetails.row;
-				var slabCol = slabDetails.col;
-
-				setPlaneGeometryUVstoSlabRowCol(side.geometry, slabRow, slabCol);
-				side.geometry.uvsNeedUpdate = true;
-
-				side.userData["imageName"] = tileName;
-
-				var slabName = "/static/tiles/" + slabDetails.slabName + ".jpg";
-				side.material = slabMaterials[slabName];
-
-				side.material.transparent = true;
-				side.material.opacity = (percentComplete - 0.5) * 2;
-
-				side.visible = true;
-
-			}	
-		}
-
 		function resetToNormalLocation(card) {
-			//fixme - not working!
-			var side = card.children[0]; //only one child - front only
-			var normal = new THREE.Vector3(0,3.14159,0);
-			//card.rotation.copy(normal);
-			//card.position.copy(normal);
-
+			//fixme
 		}
-
-					
+			
 
 		function transform( map, rows, cols, duration ) {
 			//TWEEN.removeAll();
@@ -543,8 +420,7 @@
 			var duration = duration / 1000;
 			for (r=0; r<rows; r++) {
 				for (c=0; c<cols; c++) {
-					var aCard = map[r][c];
-					let card = aCard;
+					let aCard = map[r][c];
 					
 					if ( (r % 2 == 0) && (c % 2 == 0) ) { 
 						//start flip
@@ -558,22 +434,22 @@
 						//que delayed return
 						TweenMax.to(aCard.rotation, duration, { x:0 } ).delay(duration*2);
 						TweenMax.to(aCard.position, duration, { z:0,
-							onUpdateParams:[card], onUpdate: function () {
+							onUpdateParams:[aCard], onUpdate: function () {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(card); },
-							onCompleteParams:[card], onComplete: function() { 
-								resetToNormalLocation(card); }
+								if (p > 0.5) updateOneCardToNextImageSudden(aCard); },
+							onCompleteParams:[aCard], onComplete: function() { 
+								resetToNormalLocation(aCard); }
 						 }).delay(duration*2);						
 
 					} else {
 
 						TweenMax.to(aCard.rotation, duration*2, { y: Math.PI} ).delay(1);
 						TweenMax.to(aCard.rotation, duration, { y: 0,
-							onUpdateParams:[card], onUpdate: function () {
+							onUpdateParams:[aCard], onUpdate: function () {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(card); },
-							onCompleteParams:[card], onComplete: function() { 
-								resetToNormalLocation(card); }
+								if (p > 0.5) updateOneCardToNextImageSudden(aCard); },
+							onCompleteParams:[aCard], onComplete: function() { 
+								resetToNormalLocation(aCard); }
 						 }).delay(duration*1.5);
 					}							
 				}
@@ -582,6 +458,7 @@
 
 
 		var flipStatusIsFlipped = false; //fixme
+
 		function randomlyFlipTiles() {
 			tiles = generateShuffledListofAllTiles(rows, cols);
 			//fixme - should this be a simple toggle -- all 0 or all 180?
@@ -591,7 +468,7 @@
 				for (var t=0; t<tileSets[i].length; t++) {
 					let card = tileSets[i][t];
 					if (flipStatusIsFlipped) {
-						TweenMax.to(tileSets[i][t].rotation,2, { y:0, overwrite:"auto",
+						TweenMax.to(card.rotation,2, { y:0, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
 								if (p > 0.5) updateOneCardToNextImageSudden(card); },
@@ -599,7 +476,7 @@
 								resetToNormalLocation(card); }
 						}).delay(0.2*i); 
 					} else {
-						TweenMax.to(tileSets[i][t].rotation,2, { y:Math.PI*2, overwrite:"auto",
+						TweenMax.to(card.rotation,2, { y:Math.PI*2, overwrite:"auto",
 							onUpdateParams:[card], onUpdate: function () {
 								let p = this.progress();
 								if (p > 0.5) updateOneCardToNextImageSudden(card); },
@@ -761,16 +638,16 @@
 			return newNeighbors;
 		}
 
-		function generateTileIdFromRowCol(row, col) {
-			return "#row_" + row.toString() + "_" + "col_" + col.toString();
-		}
+		//function generateTileIdFromRowCol(row, col) {
+		//	return "#row_" + row.toString() + "_" + "col_" + col.toString();
+		//}
 
-		function getRowColFromTileName(name) {
-			nums = name.match(/\d+/g); //array, row=0, col=1
-			r = parseInt(nums[0]);
-			c = parseInt(nums[1]);
-			return [r,c];
-		}
+		//function getRowColFromTileName(name) {
+		//	nums = name.match(/\d+/g); //array, row=0, col=1
+		//	r = parseInt(nums[0]);
+		//	c = parseInt(nums[1]);
+		//	return [r,c];
+		//}
 
 		function findLineBetweenCards(rowStart, colStart, rowEnd, colEnd) {
 			//from rosettacode.org - Bresenham's line drawing algorithm
@@ -923,9 +800,9 @@
 			spline = new THREE.CatmullRomCurve3([
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1), //start point
 			    new THREE.Vector3(pts[0][0], pts[0][1] , delZ*0.6), // delZ*0.3), 
-			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*2.0), //delZ*0.6),
-			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*4.0), //delZ*1.0),
-			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*2.0), //delZ*0.7),
+			    new THREE.Vector3(pts[1][0], pts[1][1] , delZ*1.5), //delZ*0.6),
+			    new THREE.Vector3(pts[2][0], pts[2][1] , delZ*3.0), //delZ*1.0),
+			    new THREE.Vector3(pts[3][0], pts[3][1] , delZ*1.5), //delZ*0.7),
 			    new THREE.Vector3(tileStart.position.x, tileStart.position.y, 0.1)
 			    ]);
 
@@ -1029,26 +906,28 @@
 				object.lookAt( vector );
 
 				let aCard = visibleCards[i];
-				TweenMax.to(aCard.position, 3, { x: object.position.x, y: object.position.y, z:object.position.z, ease: Power2.easeInOut,
+				TweenMax.to(aCard.position, 3, { x: object.position.x, y: object.position.y, z:object.position.z,
+					ease: Power2.easeInOut,
 					onUpdateParams:[aCard],
 					onUpdate: function () {
 						let p = this.progress();
 						if (p > 0.5) updateOneCardToNextImageSudden(aCard);} 
 					}).delay(0.01*i);
-				TweenMax.to(aCard.rotation, 3, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z, ease: Power2.easeInOut}).delay(0.01*i);
-				//TweenMax.to(aCard.scale, 3, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
+				TweenMax.to(aCard.rotation, 3, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z,
+					ease: Power2.easeInOut}).delay(0.01*i);
+				TweenMax.to(aCard.scale, 3, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
 
 			}
 
 			//and remove the no longer needed cards
 			for (i=0; i<inVisibleCards.length; i++) {
-				let bCardSide = inVisibleCards[i].children[0];
-				TweenMax.to(bCardSide.material, 3, { opacity: 0, ease: Power2.easeInOut, over:"all",
-					onCompleteParams:[bCardSide],
+				let bCard = inVisibleCards[i];
+				TweenMax.to(bCard.material, 3, { opacity: 0, ease: Power2.easeInOut, over:"all",
+					onCompleteParams:[bCard],
 					onComplete: function() { 
 						//bCardSide.visible = false;
-						bCardSide.parent.visible = false;
-						console.log("completed invisible card ", bCardSide);
+						bCard.visible = false;
+						//console.log("completed invisible card ", bCard);
 					}}
 				);	
 			}
@@ -1074,7 +953,6 @@
 			for (var r=0; r<rows; r++) {
 				for (var c=0; c<cols; c++) {
 					let card = map[r][c];
-					let front = card.children[0];
 					//get initial position 
 					origPos.copy(card.userData['initialPosition']);
 					//tween there, updating to new image in mid-tween
@@ -1087,96 +965,20 @@
 						}
 					).delay(0.005*i);
 					TweenMax.to(card.rotation, 3, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(0.005*i);
-					//TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"auto", 
+					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"auto", 
 					//	onComplete: function() { 
 								//autoRotateSpeed = 0;
 								//camera.position.z = 35;
 								//camera.position.y = 0; //-13;
 								//camera.position.x = 0;
 					//	}
-					//}).delay(0.005*i);
+					}).delay(0.005*i);
 					i++;				
 				}
 			}
 			sphereIsDisplayed = false;
 
-		}
-
-		function doSphereEven() {
-
-			var radius = 7;
-
-			function doRing(phi, cards, steps, nextCard) {
-				var vector = new THREE.Vector3();
-				var object = new THREE.Object3D();
-
-				//calc number of steps
-				//var steps = 40;
-				var perStep = Math.PI*2 / steps;
-				var theta = 0;
-
-
-				//sweep theta around those steps, at this phi
-				for (var s = 0; s<steps; s++) {
-
-					if (nextCard >= cards.length ) return nextCard;
-
-					object.position.x = radius * Math.cos( theta ) * Math.sin( phi );
-					object.position.z = radius * Math.sin( theta ) * Math.sin( phi );
-					object.position.y = radius * Math.cos( phi );
-
-					vector.copy( object.position ).multiplyScalar( 2 );
-
-					//object.lookAt( new THREE.Vector3(0,0,0));
-					var delay = s * 0.01;
-
-					object.lookAt( vector );
-
-					var aCard = cards[nextCard];
-					TweenMax.to(aCard.position, 6, { x: object.position.x, y: object.position.y, z:object.position.z, ease: Power2.easeInOut, overwrite: "all"}).delay(delay);
-					TweenMax.to(aCard.rotation, 6, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z, ease: Power2.easeInOut, overwrite: "all"}).delay(delay);
-					TweenMax.to(aCard.scale, 6, { x:1.3, y:1.3, ease: Power2.easeInOut});
-
-					nextCard = nextCard + 1;
-					theta = theta + perStep;	
-				}
-				return nextCard;
-			}
-
-			//var cards = generateShuffledListofAllTiles(rows, cols);
-			var cards = [];
-			for (var r=0; r<rows; r++)
-				for (var c=0; c<cols; c++)
-					cards.push(map[r][c]);
-
-			console.log("Shuffled list has this many cards: ", cards.length);
-			var nextCard = 0;
-			var phi = Math.PI/2;
-			var tileSpace = 0.9;
-
-			for (phi = 0.0; phi < Math.PI; phi+= .12) {
-
-				var ringRadius = radius * Math.sin(phi);
-				steps = Math.floor( 2 * Math.PI * ringRadius / tileSpace ) + 1;
-				nextCard = doRing(phi, cards, steps, nextCard);
-
-
-			}
-			//autoRotateSpeed = 1.6;
-
-		}		
-
-		/*
-		function rotateCamera(rotSpeed) {
-			camera.useQuaternion = true;
-			var x = camera.position.x;
-        	var z = camera.position.z;
-        	camera.position.x = x * Math.cos(rotSpeed) + z * Math.sin(rotSpeed);
-        	camera.position.z = z * Math.cos(rotSpeed) - x * Math.sin(rotSpeed);
-        	camera.lookAt(scene.position);
-		}
-		*/
-
+		}	
 
 		//window listeners
 
@@ -1236,7 +1038,7 @@
 
 						scene.add(wiMesh);
 						$("#showImage").prop("disabled", true);
-						TweenMax.to(wiMaterial, 1.0, { opacity: 1.0, onComplete: function(){
+						TweenMax.to(wiMaterial, 3.0, { opacity: 1.0, onComplete: function(){
 							$("#showImage").text("Hide Image");
 							$("#showImage").prop("disabled", false);						
 						}} );
@@ -1246,18 +1048,25 @@
 
 			} else {
 				$("#showImage").prop("disabled", true);
-				TweenMax.to(wiMaterial, 1.5, { opacity: 0, onComplete: function () {
+				scene.remove(wiMesh);
+				wiGeometry.dispose();
+				wiMaterial.dispose();
+				wiMesh = null;
+				wiMaterial = null;	
+				$("#showImage").text("Show Image");
+				$("#showImage").prop("disabled", false);
+				//TweenMax.to(wiMaterial, 1.5, { opacity: 0, onComplete: function () {
 					//fix me - avoid these globals
 					//console.log("complete dimming of image");
-					scene.remove(wiMesh);
+				//	scene.remove(wiMesh);
 					//wiMesh.dispose();
-					wiGeometry.dispose();
-					wiMaterial.dispose();
-					wiMesh = null;
-					wiMaterial = null;		
-					$("#showImage").text("Show Image");
-					$("#showImage").prop("disabled", false);
-			} } );
+				//	wiGeometry.dispose();
+				//	wiMaterial.dispose();
+				//	wiMesh = null;
+				//	wiMaterial = null;		
+				//	$("#showImage").text("Show Image");
+				//	$("#showImage").prop("disabled", false);
+			//} } );
 			}
 		});
 
@@ -1306,7 +1115,7 @@
 			
 			if ( intersects.length > 0 ) {
 				var hit = intersects[0];
-				rowcol = inv_map[hit.object.parent.id];
+				rowcol = inv_map[hit.object.id];
 				console.log("intersected = ", hit, " at rc = ", rowcol);
 				
 				//fixme - what if I don't hit a card?
@@ -1318,7 +1127,7 @@
 					console.log("preparing to load imageName ", imageName);
 					
 					//save current as prior, in case we need it for transition
-					priorImageJSONmap = copyImageJSONmap(imageJSONmap);
+					//priorImageJSONmap = copyImageJSONmap(imageJSONmap);
 
 					loadImageTileMap(imageName, function(data) {
 						console.log("loaded JSON map!");

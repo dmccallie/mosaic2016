@@ -67,6 +67,10 @@ def mosaicOneSide():
 def mosaic2016():
 	return render_template('mosaic2016.html')
 
+@app.route('/mosaic2016simple')
+def mosaic2016simple():
+	return render_template('mosaic2016simple.html')
+
 @app.route('/slabmap', methods = ['GET'])
 def get_slabMap():
 	#load the slab map and return (it's already JSON)
