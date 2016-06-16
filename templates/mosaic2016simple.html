@@ -434,9 +434,9 @@
 						//que delayed return
 						TweenMax.to(aCard.rotation, duration, { x:0 } ).delay(duration*2);
 						TweenMax.to(aCard.position, duration, { z:0,
-							onUpdateParams:[aCard], onUpdate: function () {
+							onUpdateParams:[aCard], onUpdate: function (c) {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(aCard); },
+								if (p > 0.5) updateOneCardToNextImageSudden(c); },
 							onCompleteParams:[aCard], onComplete: function() { 
 								resetToNormalLocation(aCard); }
 						 }).delay(duration*2);						
@@ -445,9 +445,9 @@
 
 						TweenMax.to(aCard.rotation, duration*2, { y: Math.PI} ).delay(1);
 						TweenMax.to(aCard.rotation, duration, { y: 0,
-							onUpdateParams:[aCard], onUpdate: function () {
+							onUpdateParams:[aCard], onUpdate: function (c) {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(aCard); },
+								if (p > 0.5) updateOneCardToNextImageSudden(c); },
 							onCompleteParams:[aCard], onComplete: function() { 
 								resetToNormalLocation(aCard); }
 						 }).delay(duration*1.5);
@@ -469,17 +469,17 @@
 					let card = tileSets[i][t];
 					if (flipStatusIsFlipped) {
 						TweenMax.to(card.rotation,2, { y:0, overwrite:"auto",
-							onUpdateParams:[card], onUpdate: function () {
+							onUpdateParams:[card], onUpdate: function (c) {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(card); },
+								if (p > 0.5) updateOneCardToNextImageSudden(c); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }
 						}).delay(0.2*i); 
 					} else {
 						TweenMax.to(card.rotation,2, { y:Math.PI*2, overwrite:"auto",
-							onUpdateParams:[card], onUpdate: function () {
+							onUpdateParams:[card], onUpdate: function (c) {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(card); },
+								if (p > 0.5) updateOneCardToNextImageSudden(c); },
 							onCompleteParams:[card], onComplete: function() { 
 								resetToNormalLocation(card); }							
 						}).delay(0.2*i);
@@ -555,9 +555,9 @@
 					//console.log(rc);
 					//var zmag = 2 - (r2*.125);
 					if (rc.col > c ) {
-						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
+						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function (c) {
 							let p = this.progress();
-							if (p > 0.5) updateOneCardToNextImageSudden(card); },
+							if (p > 0.5) updateOneCardToNextImageSudden(c); },
 						onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -570,9 +570,9 @@
 						//TweenMax.to(tempArr[t].position, .9, { z:0,  
 						//	ease: Power2.easeInOut, overwrite:"auto"}).delay((0.11*r2)+1.1); 
 					} else {
-						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function () {
+						var tl = new TimelineLite({delay:0.1*r2, overwrite: "auto", onUpdateParams:[card], onUpdate: function (c) {
 							let p = this.progress();
-							if (p > 0.5) updateOneCardToNextImageSudden(card);
+							if (p > 0.5) updateOneCardToNextImageSudden(c);
 						}, onCompleteParams:[card], onComplete: function() { resetToNormalLocation(card); }});
 						tl.add(TweenLite.to(tempArr[t].position, 1,  { z:1.5, ease: Power2.easeOut }));
 						tl.add(TweenLite.to(tempArr[t].rotation, 2, { x:"+=3.1415", z:"+=3.1415", y:"+=3.1415", delay:"-.7" }));
@@ -587,8 +587,8 @@
 			}
 			let card = startingTile;
 			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"all", onUpdateParams:[card], 
-				onUpdate: function () {
-					if (this.progress() > 0.3) updateOneCardToNextImageSudden(card);
+				onUpdate: function (c) {
+					if (this.progress() > 0.3) updateOneCardToNextImageSudden(c);
 			}}); 
 		};					
 
@@ -906,30 +906,36 @@
 				object.lookAt( vector );
 
 				let aCard = visibleCards[i];
-				TweenMax.to(aCard.position, 3, { x: object.position.x, y: object.position.y, z:object.position.z,
+
+				TweenMax.to(aCard.position, 2, { x: object.position.x, y: object.position.y, z:object.position.z,
 					ease: Power2.easeInOut,
 					onUpdateParams:[aCard],
-					onUpdate: function () {
+					onUpdate: function (c) {
 						let p = this.progress();
-						if (p > 0.5) updateOneCardToNextImageSudden(aCard);} 
+						if (p > 0.5) updateOneCardToNextImageSudden(c);} 
 					}).delay(0.01*i);
-				TweenMax.to(aCard.rotation, 3, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z,
+				TweenMax.to(aCard.rotation, 2, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z,
 					ease: Power2.easeInOut}).delay(0.01*i);
-				TweenMax.to(aCard.scale, 3, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
+				TweenMax.to(aCard.scale, 2, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
 
 			}
 
 			//and remove the no longer needed cards
 			for (i=0; i<inVisibleCards.length; i++) {
 				let bCard = inVisibleCards[i];
-				TweenMax.to(bCard.material, 3, { opacity: 0, ease: Power2.easeInOut, over:"all",
+				let wrapper = {'card':bCard, 'opacity': 1};
+				TweenMax.to(wrapper, 2, { opacity: 0, ease: Power2.easeInOut, overwrite:"all",
+					onUpdateParams: [wrapper],
+					onUpdate: function(cardWrapper) {
+						cardWrapper.card.material = cardWrapper.opacity;
+					},
 					onCompleteParams:[bCard],
-					onComplete: function() { 
+					onComplete: function(card) { 
 						//bCardSide.visible = false;
-						bCard.visible = false;
+						card.visible = false;
 						//console.log("completed invisible card ", bCard);
 					}}
-				);	
+				).delay(0.01*i);
 			}
 
 			autoRotateSpeed = 1.6;
@@ -958,9 +964,9 @@
 					//tween there, updating to new image in mid-tween
 					TweenMax.to(card.position, 3, { x: origPos.x, y:origPos.y, z:0, overwrite:"auto",
 							onUpdateParams:[card],
-							onUpdate: function () {
+							onUpdate: function (c) {
 								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(card); 
+								if (p > 0.5) updateOneCardToNextImageSudden(c); 
 							}
 						}
 					).delay(0.005*i);
@@ -1038,9 +1044,16 @@
 
 						scene.add(wiMesh);
 						$("#showImage").prop("disabled", true);
-						TweenMax.to(wiMaterial, 3.0, { opacity: 1.0, onComplete: function(){
-							$("#showImage").text("Hide Image");
-							$("#showImage").prop("disabled", false);						
+						let wrapper = { 'material':wiMaterial, 'opacity': 0};
+						TweenMax.to(wrapper, 3.0, { opacity: 1.0,
+							onUpdateParams:[wrapper],
+							onUpdate: function(wrapper) {
+								wrapper.material.transparent = true;
+								wrapper.material.opacity = wrapper.opacity;
+							},
+							onComplete: function(){
+								$("#showImage").text("Hide Image");
+								$("#showImage").prop("disabled", false);						
 						}} );
 					}
 
