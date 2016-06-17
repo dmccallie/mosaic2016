@@ -971,13 +971,12 @@
 						}
 					).delay(0.005*i);
 					TweenMax.to(card.rotation, 3, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(0.005*i);
-					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"auto", 
-					//	onComplete: function() { 
-								//autoRotateSpeed = 0;
-								//camera.position.z = 35;
-								//camera.position.y = 0; //-13;
-								//camera.position.x = 0;
-					//	}
+					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"all", 
+						onCompleteParams: card,
+						onComplete: function(c) { 
+							card.position.z = 0;  //fixme ??????
+							card.rotation.z = 0;
+						}
 					}).delay(0.005*i);
 					i++;				
 				}
@@ -1025,8 +1024,8 @@
 					function(texture) {
 						//console.log("loaded the image as a texture");
 						texture.minFilter = THREE.LinearFilter;  //prevents POT scaling????
-						wiMaterial = new THREE.MeshBasicMaterial( {  map:texture, side:THREE.FrontSide,
-							transparent:true, opacity:0} ); //, transparent:true, opacity:0.4} );
+						wiMaterial = new THREE.MeshBasicMaterial( {  map:texture, side:THREE.DoubleSide,
+							transparent:true, opacity:0} ); //strange - have to start with opacity = 1??;
 
 						wiGeometry = new THREE.PlaneGeometry( imageJSONmap.cols/2, imageJSONmap.rows/2, 1, 1);
 						wiMesh = new THREE.Mesh(wiGeometry, wiMaterial);
@@ -1042,12 +1041,15 @@
 						(imageJSONmap.rows % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = .25;
 						wiMesh.position.z = 0.5;
 
+						wiMesh.visible = false;
 						scene.add(wiMesh);
+
 						$("#showImage").prop("disabled", true);
-						let wrapper = { 'material':wiMaterial, 'opacity': 0};
+						let wrapper = { 'mesh': wiMesh, 'material':wiMaterial, 'opacity': 0};
 						TweenMax.to(wrapper, 3.0, { opacity: 1.0,
 							onUpdateParams:[wrapper],
 							onUpdate: function(wrapper) {
+								wrapper.mesh.visible = true;
 								wrapper.material.transparent = true;
 								wrapper.material.opacity = wrapper.opacity;
 							},
