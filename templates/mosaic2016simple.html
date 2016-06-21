@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>My first Three.js app</title>
+		<title>Mosaic2016</title>
 		<style>
 			body { margin: 0; }
 			
@@ -861,12 +861,55 @@
 		var autoRotateSpeed = 0;  //global fix me
 		var sphereIsDisplayed = false;
 
+		function calcSphereCoordinates(i, l, radius) {
+			//i = instance, l = total cards in shape, radius = radius
+
+			var object = new THREE.Object3D();
+			var vector = new THREE.Vector3();
+
+			var phi = Math.acos( -1 + ( 2 * i ) / l );
+			var theta = Math.sqrt( l * Math.PI ) * phi;
+				//console.log("l, i, phi, theta", l, i, phi, theta, phi*180/Math.PI, (theta*180/Math.PI) % 360, Math.cos(theta)  );
+
+			object.position.x = radius * Math.cos( theta ) * Math.sin( phi );
+			object.position.z = radius * Math.sin( theta ) * Math.sin( phi );
+			object.position.y = radius * Math.cos( phi );
+
+			vector.copy( object.position ).multiplyScalar( 2 );
+
+			return {'object': object, 'vector': vector};
+
+		}
+
+		function calcHelixCoordinates(i, l, radius) {
+			//i = instance, l = total cards in shape, radius = radius
+
+			var object = new THREE.Object3D();
+			var vector = new THREE.Vector3();
+
+			var phi = i * 0.175 + Math.PI;
+
+			object.position.x = radius * Math.sin( phi );
+			//object.position.z = - ( i * 8 ) + 450;
+			object.position.y = - ( i * 0.025 ) + 10;
+			object.position.z = radius * Math.cos( phi );
+
+			vector.x = object.position.x * 2;
+			vector.y = object.position.y;
+			vector.z = object.position.z * 2;
+		
+
+			return {'object': object, 'vector': vector};
+
+		}
+
 		function doSphere() {
+
 
 			cards = generateShuffledListofAllTiles(rows, cols);
 
-			var vector = new THREE.Vector3();
-			var object = new THREE.Object3D();
+			//var vector = new THREE.Vector3();
+			//var object = new THREE.Object3D();
 			var radius = 7;
 			var i = 0;
 
@@ -892,13 +935,18 @@
 
 			for (i = 0, l = visibleCards.length; i < l; i ++ ) {
 
+				/*
 				var phi = Math.acos( -1 + ( 2 * i ) / l );
 				var theta = Math.sqrt( l * Math.PI ) * phi;
-				//console.log("l, i, phi, theta", l, i, phi, theta, phi*180/Math.PI, (theta*180/Math.PI) % 360, Math.cos(theta)  );
 
 				object.position.x = radius * Math.cos( theta ) * Math.sin( phi );
 				object.position.z = radius * Math.sin( theta ) * Math.sin( phi );
 				object.position.y = radius * Math.cos( phi );
+				*/
+
+				coords = calcHelixCoordinates(i, l, radius);
+				var object = coords.object;
+				var vector = coords.vector;
 
 				vector.copy( object.position ).multiplyScalar( 2 );
 
@@ -974,8 +1022,9 @@
 					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"all", 
 						onCompleteParams: card,
 						onComplete: function(c) { 
-							card.position.z = 0;  //fixme ??????
-							card.rotation.z = 0;
+							//card.position.z = 0;
+							//card.rotation.z = 0;
+							card.position.copy(card.userData.initialPosition);
 						}
 					}).delay(0.005*i);
 					i++;				
@@ -1010,6 +1059,8 @@
 			//assumes imageJSONmap is ready to use
 
 			if (typeof imageJSONmap === 'undefined') return;
+
+			TweenMax.killAll(false,true,true,true);
 
 			var imageName = imageJSONmap.name;
 
