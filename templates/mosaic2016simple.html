@@ -43,6 +43,8 @@
 			 	<label for="shutters">Shutters</label>			
 			<input type="radio" name="transition" id = "sphere" value="sphere" >		
 			 	<label for="sphere">Sphere</label>	
+			<input type="radio" name="transition" id = "helix" value="helix" >		
+			 	<label for="helix">Helix</label>
 			<button type="button" id="showImage">Show Image</button>
 		</form>
 		
@@ -891,7 +893,7 @@
 
 			object.position.x = radius * Math.sin( phi );
 			//object.position.z = - ( i * 8 ) + 450;
-			object.position.y = - ( i * 0.025 ) + 10;
+			object.position.y = - ( i * 0.022 ) + 8;
 			object.position.z = radius * Math.cos( phi );
 
 			vector.x = object.position.x * 2;
@@ -903,7 +905,7 @@
 
 		}
 
-		function doSphere() {
+		function doSphere(calcLocations) {
 
 
 			cards = generateShuffledListofAllTiles(rows, cols);
@@ -932,39 +934,33 @@
 
 			console.log("visible cards = ", visibleCards.length);
 			console.log("INvisible cards = ", inVisibleCards.length);
-
+			
+			let time = 1.5; 
+			
 			for (i = 0, l = visibleCards.length; i < l; i ++ ) {
 
-				/*
-				var phi = Math.acos( -1 + ( 2 * i ) / l );
-				var theta = Math.sqrt( l * Math.PI ) * phi;
 
-				object.position.x = radius * Math.cos( theta ) * Math.sin( phi );
-				object.position.z = radius * Math.sin( theta ) * Math.sin( phi );
-				object.position.y = radius * Math.cos( phi );
-				*/
-
-				coords = calcHelixCoordinates(i, l, radius);
+				coords = calcLocations(i, l, radius);
 				var object = coords.object;
 				var vector = coords.vector;
 
-				vector.copy( object.position ).multiplyScalar( 2 );
-
-				//object.lookAt( new THREE.Vector3(0,0,0));
 				object.lookAt( vector );
 
 				let aCard = visibleCards[i];
 
-				TweenMax.to(aCard.position, 2, { x: object.position.x, y: object.position.y, z:object.position.z,
+
+				TweenMax.to(aCard.position, time, { x: object.position.x, y: object.position.y, z:object.position.z,
 					ease: Power2.easeInOut,
 					onUpdateParams:[aCard],
 					onUpdate: function (c) {
 						let p = this.progress();
 						if (p > 0.5) updateOneCardToNextImageSudden(c);} 
 					}).delay(0.01*i);
-				TweenMax.to(aCard.rotation, 2, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z,
+				TweenMax.to(aCard.rotation, time, { x: object.rotation.x, y: object.rotation.y, z:object.rotation.z,
 					ease: Power2.easeInOut}).delay(0.01*i);
-				TweenMax.to(aCard.scale, 2, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
+				TweenMax.to(aCard.scale, time, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
+
+				TweenMax.to(aCard.rotation, 3, {y:Math.PI, repeat:50, yoyo:true}).delay(3+(0.01*i));
 
 			}
 
@@ -972,7 +968,7 @@
 			for (i=0; i<inVisibleCards.length; i++) {
 				let bCard = inVisibleCards[i];
 				let wrapper = {'card':bCard, 'opacity': 1};
-				TweenMax.to(wrapper, 2, { opacity: 0, ease: Power2.easeInOut, overwrite:"all",
+				TweenMax.to(wrapper, time, { opacity: 0, ease: Power2.easeInOut, overwrite:"all",
 					onUpdateParams: [wrapper],
 					onUpdate: function(cardWrapper) {
 						cardWrapper.card.material = cardWrapper.opacity;
@@ -989,6 +985,7 @@
 			autoRotateSpeed = 1.6;
 			sphereIsDisplayed = true;
 
+
 		}
 
 		function unDoSphere() {
@@ -1002,6 +999,9 @@
 			camera.position.x = 0;
 			//camera.updateProjectionMatrix();  //fixme - make this a slow tween?
 			orbitControls.update();
+			
+			TweenMax.killAll(false,true,true,true);
+			
 			var origPos = new THREE.Vector3();
 			var i = 0;
 			for (var r=0; r<rows; r++) {
@@ -1218,7 +1218,10 @@
 									transform( map, rows, cols, 2000 );
 									break;							
 								case 'sphere':
-									doSphere();
+									doSphere(calcSphereCoordinates);
+									break;
+								case 'helix':
+									doSphere(calcHelixCoordinates);
 									break;
 							}
 						}
