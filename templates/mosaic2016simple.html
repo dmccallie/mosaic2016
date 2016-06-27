@@ -78,8 +78,8 @@
 
 		var renderer = new THREE.WebGLRenderer({canvas:rendercanvas, });
 		renderer.setSize( 1000, 1000 ); //fixme
-		renderer.sortObjects = true;
-
+		renderer.sortObjects = false;  //prevents wierd clipping when showing the original image??
+ 
 		var orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
 
 		//var statsdiv = document.getElementById("stats");
@@ -489,6 +489,8 @@
 				}	
 			}
 			flipStatusIsFlipped = !flipStatusIsFlipped;
+			transientlyShowImage(5, imageJSONmap);
+
 		}
 
 		function generateShuffledListofAllTiles(numRows, numCols) {
@@ -591,7 +593,8 @@
 			TweenMax.to(startingTile.rotation, 3, { y:"+=3.1415*5", overwrite:"all", onUpdateParams:[card], 
 				onUpdate: function (c) {
 					if (this.progress() > 0.3) updateOneCardToNextImageSudden(c);
-			}}); 
+			}});
+			transientlyShowImage(4, imageJSONmap); 
 		};					
 
 		function newNeighborsOf(numRows, numCols, currentNeighbors) {
@@ -767,6 +770,8 @@
 				}
 			}
 
+			transientlyShowImage(12, imageJSONmap); 
+
 		}
 
 		function doSplineTween360(rStart, cStart, delay) {
@@ -908,7 +913,7 @@
 		function doSphere(calcLocations) {
 
 
-			cards = generateShuffledListofAllTiles(rows, cols);
+			var cards = generateShuffledListofAllTiles(rows, cols);
 
 			//var vector = new THREE.Vector3();
 			//var object = new THREE.Object3D();
@@ -935,7 +940,7 @@
 			console.log("visible cards = ", visibleCards.length);
 			console.log("INvisible cards = ", inVisibleCards.length);
 			
-			let time = 1.5; 
+			let time = 1.0; 
 			
 			for (i = 0, l = visibleCards.length; i < l; i ++ ) {
 
@@ -960,7 +965,7 @@
 					ease: Power2.easeInOut}).delay(0.01*i);
 				TweenMax.to(aCard.scale, time, { x:1.2, y:1.2, ease: Power2.easeInOut}).delay(0.01*i);
 
-				TweenMax.to(aCard.rotation, 3, {y:Math.PI, repeat:50, yoyo:true}).delay(3+(0.01*i));
+				TweenMax.to(aCard.rotation, 3, {y:Math.PI, repeat:50, yoyo:true}).delay(5+(0.01*i));
 
 			}
 
@@ -997,6 +1002,9 @@
 			camera.position.z = 35;
 			camera.position.y = 0; //-13;
 			camera.position.x = 0;
+			camera.rotation.x = 0;
+			camera.rotation.y = 0;
+			camera.rotation.z = 0;
 			//camera.updateProjectionMatrix();  //fixme - make this a slow tween?
 			orbitControls.update();
 			
@@ -1004,33 +1012,37 @@
 			
 			var origPos = new THREE.Vector3();
 			var i = 0;
-			for (var r=0; r<rows; r++) {
-				for (var c=0; c<cols; c++) {
-					let card = map[r][c];
-					//get initial position 
-					origPos.copy(card.userData['initialPosition']);
-					//tween there, updating to new image in mid-tween
-					TweenMax.to(card.position, 3, { x: origPos.x, y:origPos.y, z:0, overwrite:"auto",
-							onUpdateParams:[card],
-							onUpdate: function (c) {
-								let p = this.progress();
-								if (p > 0.5) updateOneCardToNextImageSudden(c); 
-							}
+
+			var cards = generateShuffledListofAllTiles(rows, cols);
+			//for (var r=0; r<rows; r++) {
+			//	for (var c=0; c<cols; c++) {
+			//		let card = map[r][c];
+			for (i=0; i<cards.length; i++) {
+				//get initial position 
+				let card = cards[i];
+				origPos.copy(card.userData['initialPosition']);
+				//tween there, updating to new image in mid-tween
+				TweenMax.to(card.position, 3, { x: origPos.x, y:origPos.y, z:0, overwrite:"auto",
+						onUpdateParams:[card],
+						onUpdate: function (c) {
+							let p = this.progress();
+							if (p > 0.5) updateOneCardToNextImageSudden(c); 
 						}
-					).delay(0.005*i);
-					TweenMax.to(card.rotation, 3, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(0.005*i);
-					TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"all", 
-						onCompleteParams: card,
-						onComplete: function(c) { 
-							//card.position.z = 0;
-							//card.rotation.z = 0;
-							card.position.copy(card.userData.initialPosition);
-						}
-					}).delay(0.005*i);
-					i++;				
-				}
+					}
+				).delay(0.005*i);
+				TweenMax.to(card.rotation, 3, {x: 0, y: 0, z:0, overwrite:"auto" }).delay(0.005*i);
+				TweenMax.to(card.scale, 3, {x: 1, y: 1, overwrite:"all", 
+					onCompleteParams: card,
+					onComplete: function(c) { 
+						//card.position.z = 0;
+						//card.rotation.z = 0;
+						//card.position.copy(card.userData.initialPosition);
+					}
+				}).delay(0.005*i);
+				//i++;				
 			}
 			sphereIsDisplayed = false;
+			transientlyShowImage(8, imageJSONmap); 
 
 		}	
 
@@ -1048,7 +1060,54 @@
 
 		}
 
+		function transientlyShowImage(durationToStart, imageMap) {
+			//fade it in, then fade it out
+			//pass in the already loaded imageMap?
+			if (typeof imageMap === 'undefined') return;
+			var imageURL = "/image/" + imageMap.name;
 
+			//fetch the image, and on return, do the work
+			var wholeImage = new THREE.TextureLoader().load(imageURL, 
+				function(texture) {
+
+					texture.minFilter = THREE.LinearFilter;  //prevents POT scaling
+					transMaterial = new THREE.MeshBasicMaterial( {  map:texture, side:THREE.DoubleSide,
+						transparent:true, opacity:0} ); 
+
+					transGeometry = new THREE.PlaneGeometry( imageMap.cols/2, imageMap.rows/2, 1, 1);
+					transMesh = new THREE.Mesh(transGeometry, transMaterial);
+
+					//position may need offset since odd number of rows or cols will cause asymmetrical placement
+					// when the image is assigned to the fixed layout of tiles
+					var rowgap = Math.floor((rows - imageMap.rows) / 2); //note the round-down
+					var colgap =  Math.floor((cols - imageMap.cols) / 2);
+					//(colgap % 2 == 0) ?  wiMesh.position.x = 0 : wiMesh.position.x = 0.25;
+					//(rowgap % 2 == 0) ?  wiMesh.position.y = 0 : wiMesh.position.y = 0.25;
+					
+					(imageJSONmap.cols % 2 == 0) ?  transMesh.position.x = 0 : transMesh.position.x = -.25;
+					(imageJSONmap.rows % 2 == 0) ?  transMesh.position.y = 0 : transMesh.position.y = .25;
+					transMesh.position.z = 0.5;
+
+					//transMesh.transparent = true;
+					//transMesh.opacity = 0;
+					transMesh.visible = true;
+					scene.add(transMesh);
+
+					var transient = new TimelineLite({
+						onComplete: function() {
+ 							scene.remove(transMesh); 
+							transGeometry.dispose();
+							transMaterial.dispose();						
+					    }
+					});
+					transient.add(TweenMax.to(transMesh.material, durationToStart, { opacity: 0.6, ease: Power2.easeIn }));
+					transient.add(TweenMax.to(transMesh.material, 2, { opacity: 1  }));	
+					transient.add(TweenMax.to(transMesh.material, 3, { opacity: 0 }));
+				}
+
+			);
+
+		}
 
 		//FIXME - don't want these to be globals
 		var wiMesh = null;
@@ -1097,7 +1156,7 @@
 
 						$("#showImage").prop("disabled", true);
 						let wrapper = { 'mesh': wiMesh, 'material':wiMaterial, 'opacity': 0};
-						TweenMax.to(wrapper, 3.0, { opacity: 1.0,
+						TweenMax.to(wrapper, 1.5, { opacity: 1.0,
 							onUpdateParams:[wrapper],
 							onUpdate: function(wrapper) {
 								wrapper.mesh.visible = true;
@@ -1114,25 +1173,27 @@
 
 			} else {
 				$("#showImage").prop("disabled", true);
-				scene.remove(wiMesh);
-				wiGeometry.dispose();
-				wiMaterial.dispose();
-				wiMesh = null;
-				wiMaterial = null;	
-				$("#showImage").text("Show Image");
-				$("#showImage").prop("disabled", false);
-				//TweenMax.to(wiMaterial, 1.5, { opacity: 0, onComplete: function () {
-					//fix me - avoid these globals
-					//console.log("complete dimming of image");
-				//	scene.remove(wiMesh);
-					//wiMesh.dispose();
-				//	wiGeometry.dispose();
-				//	wiMaterial.dispose();
-				//	wiMesh = null;
-				//	wiMaterial = null;		
-				//	$("#showImage").text("Show Image");
-				//	$("#showImage").prop("disabled", false);
-			//} } );
+				//scene.remove(wiMesh);
+				//wiGeometry.dispose();
+				//wiMaterial.dispose();
+				//wiMesh = null;
+				//wiMaterial = null;	
+				//$("#showImage").text("Show Image");
+				//$("#showImage").prop("disabled", false);
+				TweenMax.to(wiMaterial, 1.5, { opacity: 0, 
+					onComplete: function () {
+						//fix me - avoid these globals
+						//console.log("complete dimming of image");
+						scene.remove(wiMesh);
+						//wiMesh.dispose();
+						wiGeometry.dispose();
+						wiMaterial.dispose();
+						wiMesh = null;
+						wiMaterial = null;		
+						$("#showImage").text("Show Image");
+						$("#showImage").prop("disabled", false);
+					} 
+				});
 			}
 		});
 
